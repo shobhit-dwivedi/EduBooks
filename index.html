@@ -431,12 +431,12 @@
           <p class="text-muted fs-sm mb-lg">Sign in to access your library.</p>
           <div class="form-group">
             <label>Username</label>
-            <input type="text" id="login-username" placeholder="your_username" autocomplete="username" onkeydown="if(event.key==='Enter')submitLogin()" />
+            <input type="text" id="login-username" placeholder="your_username" autocomplete="off" onkeydown="if(event.key==='Enter')submitLogin()" />
           </div>
           <div class="form-group">
             <label>Password</label>
             <div class="input-with-toggle">
-              <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitLogin()" />
+              <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()" />
               <button type="button" class="pw-toggle" onclick="togglePw('login-password', this)">Show</button>
             </div>
           </div>
@@ -566,9 +566,21 @@
       <div class="modal-body p-0">
         <div class="preview-toolbar">
           <span id="preview-title" class="fw-600 fs-sm"></span>
+          <span id="preview-badge" class="cat-badge hidden" style="color:#fff;background:var(--primary)">Preview — First 4 Pages</span>
           <button class="btn btn-ghost btn-sm" onclick="closeModal('preview-modal')">Close</button>
         </div>
-        <iframe id="preview-iframe" src="" title="Book Preview" allowfullscreen></iframe>
+        <div id="preview-wrap" class="preview-wrap">
+          <iframe id="preview-iframe" src="" title="Book Preview" allowfullscreen></iframe>
+          <div class="preview-fade hidden" id="preview-fade"></div>
+        </div>
+        <div class="preview-lock hidden" id="preview-lock">
+          <div class="preview-lock-icon">
+            <svg viewBox="0 0 24 24" fill="none" width="36" height="36"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 11V7a4 4 0 018 0v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </div>
+          <p class="fw-600 fs-base mt-sm">Preview ends here</p>
+          <p class="text-muted fs-sm mt-xs mb-md">Buy this book to read all pages</p>
+          <div id="preview-lock-actions"></div>
+        </div>
       </div>
       <button class="modal-close" onclick="closeModal('preview-modal')" aria-label="Close">
         <svg viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -584,8 +596,30 @@
     </div>
   </div>
 
+  <!-- Mobile Bottom Navigation -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="bnav-btn" id="bnav-home" onclick="showPage('home')">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 21V12h6v9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Home</span>
+    </button>
+
+    <button class="bnav-btn bnav-center" id="bnav-library" onclick="showPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>My Library</span>
+    </button>
+
+    <button class="bnav-btn" id="bnav-cart" onclick="toggleCart()">
+      <span class="bnav-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M16 10a4 4 0 01-8 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="badge hidden" id="mob-cart-badge">0</span>
+      </span>
+      <span>Cart</span>
+    </button>
+  </nav>
+
   <script src="script.js"></script>
 </body>
 </html>
+
 
 
