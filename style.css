@@ -719,8 +719,48 @@ a { text-decoration: none; color: inherit; }
 .modal.modal-preview {
   max-width: 860px; height: 90vh; display: flex; flex-direction: column;
 }
-.modal-preview .modal-body { display: flex; flex-direction: column; flex: 1; }
-.modal-preview #preview-iframe { flex: 1; border: none; width: 100%; }
+.modal-preview .modal-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+/* Preview wrap — surrounds the iframe */
+.preview-wrap {
+  position: relative; flex: 1; display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.preview-wrap iframe { border: none; width: 100%; flex: 1; }
+
+/* Full reader mode (purchased) — iframe fills all space */
+.preview-wrap.mode-full { flex: 1; }
+.preview-wrap.mode-full iframe { pointer-events: auto; }
+
+/* Preview-only mode — fixed height clips to ~4 pages */
+.preview-wrap.mode-preview {
+  flex: none;
+  height: 58vh;
+  max-height: 560px;
+}
+.preview-wrap.mode-preview iframe { pointer-events: none; height: 100%; }
+
+/* Gradient fade at bottom of preview */
+.preview-fade {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 110px; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--bg2));
+}
+
+/* Lock banner shown below the preview iframe */
+.preview-lock {
+  flex-shrink: 0;
+  padding: 22px 20px 26px;
+  text-align: center;
+  border-top: 1.5px solid var(--border);
+  background: var(--bg2);
+}
+.preview-lock-icon {
+  width: 60px; height: 60px; border-radius: 50%;
+  background: var(--bg3); border: 1.5px solid var(--border);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+}
 
 @keyframes fadeScaleIn {
   from { opacity: 0; transform: scale(0.96); }
@@ -1026,6 +1066,75 @@ a { text-decoration: none; color: inherit; }
   .hero-title    { font-size: 1.35rem; }
   .analytics-grid { grid-template-columns: repeat(2, 1fr); }
   .modal-body    { padding: 18px 14px 24px; }
+}
+
+/* ── MOBILE BOTTOM NAV ───────────────────────────── */
+.bottom-nav { display: none; }
+
+@media (max-width: 640px) {
+  /* Show bottom nav */
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 300;
+    background: var(--bg2);
+    border-top: 1.5px solid var(--border);
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    align-items: flex-end;
+    justify-content: space-around;
+    gap: 4px;
+  }
+
+  .bnav-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted);
+    font-size: 0.67rem; font-weight: 500;
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s;
+    min-width: 56px;
+  }
+  .bnav-btn svg { width: 22px; height: 22px; }
+  .bnav-btn:active { color: var(--primary); }
+  .bnav-btn.active { color: var(--primary); }
+
+  /* Centre pill — My Library */
+  .bnav-center {
+    background: var(--primary);
+    color: #fff !important;
+    border-radius: 28px;
+    padding: 10px 22px 8px;
+    gap: 4px;
+    margin-bottom: 4px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .bnav-center svg { width: 26px; height: 26px; }
+  .bnav-center:active { opacity: 0.88; }
+
+  /* Cart badge overlay on icon */
+  .bnav-icon-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center; justify-content: center;
+  }
+  .bnav-icon-wrap .badge {
+    position: absolute;
+    top: -5px; right: -8px;
+    font-size: 0.6rem;
+    min-width: 16px; height: 16px;
+    padding: 0 4px;
+    line-height: 16px;
+  }
+
+  /* Hide top-nav cart button on mobile (it's in bottom nav) */
+  .nav-icon-btn.cart-btn { display: none; }
+
+  /* Push page content above the bottom nav */
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* ── SAFE AREA (iPhone notch) ───────────────────── */
