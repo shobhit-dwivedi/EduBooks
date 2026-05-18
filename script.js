@@ -527,6 +527,7 @@ function openReader(bookId) {
   }
   const wrap = el('preview-wrap');
   wrap.classList.remove('mode-preview'); wrap.classList.add('mode-full');
+  el('preview-blocker')?.classList.add('hidden');
   el('preview-fade')?.classList.add('hidden');
   el('preview-lock')?.classList.add('hidden');
   el('preview-badge')?.classList.add('hidden');
@@ -542,6 +543,7 @@ function openPreviewReader(bookId) {
 
   const wrap = el('preview-wrap');
   wrap.classList.remove('mode-full'); wrap.classList.add('mode-preview');
+  el('preview-blocker')?.classList.remove('hidden');
   el('preview-fade')?.classList.remove('hidden');
   el('preview-badge')?.classList.remove('hidden');
 
