@@ -4,122 +4,179 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>EduBooks — Student eBook Store</title>
-  <meta name="description" content="Premium study materials for ambitious learners. First book free!" />
+  <meta name="description" content="Premium study materials for Class 9, Class 10, JEE, NEET and more." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <!-- TOAST -->
   <div id="toast-container"></div>
 
-  <!-- ══════════ NAVBAR ══════════ -->
-  <nav class="navbar">
+  <!-- ══════════════════════════════════════════
+       NAVBAR
+  ══════════════════════════════════════════ -->
+  <nav class="navbar" id="navbar">
     <div class="navbar-inner">
-      <a href="#" class="brand" onclick="showPage('home')">
-        <span class="brand-icon">📚</span>
+
+      <!-- Logo -->
+      <a href="#" class="brand" onclick="showPage('home'); return false;">
+        <svg class="brand-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="8" fill="var(--primary)"/>
+          <path d="M8 10h16M8 16h16M8 22h10" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
         <span class="brand-name">EduBooks</span>
       </a>
 
-      <div class="nav-right">
-        <button class="icon-btn" onclick="toggleTheme()" id="theme-toggle" title="Toggle theme">🌙</button>
+      <!-- Search (desktop) -->
+      <div class="nav-search" id="nav-search-box">
+        <svg class="nav-search-icon" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.6"/><path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input type="search" id="nav-search-input" placeholder="Search books, subjects, topics…" oninput="handleSearch(event)" autocomplete="off" />
+      </div>
 
-        <!-- Cart button -->
-        <button class="icon-btn cart-btn" onclick="openCart()" title="Cart" id="cart-btn">
-          🛒<span class="cart-badge hidden" id="cart-count">0</span>
+      <!-- Right controls -->
+      <div class="nav-right">
+        <!-- Theme toggle -->
+        <button class="nav-icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle theme" aria-label="Toggle theme">
+          <svg id="icon-moon" viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 0111.21 3 7 7 0 1012 21a9 9 0 009-8.21z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg id="icon-sun" class="hidden" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.7"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         </button>
 
-        <!-- Logged-out -->
-        <div id="auth-logged-out" class="auth-btns">
+        <!-- Cart -->
+        <button class="nav-icon-btn cart-btn" onclick="toggleCart()" title="Cart" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M16 10a4 4 0 01-8 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="badge hidden" id="cart-badge">0</span>
+        </button>
+
+        <!-- Auth: logged out -->
+        <div id="nav-logged-out" class="nav-auth">
           <button class="btn btn-ghost btn-sm" onclick="openAuth('login')">Login</button>
           <button class="btn btn-primary btn-sm" onclick="openAuth('register')">Register</button>
         </div>
 
-        <!-- Logged-in -->
-        <div id="auth-logged-in" class="hidden">
-          <button class="avatar-btn" onclick="toggleUserMenu()" id="avatar-trigger">
-            <span class="avatar-circle" id="user-initials">U</span>
+        <!-- Auth: logged in -->
+        <div id="nav-logged-in" class="hidden nav-user">
+          <button class="nav-lib-btn" onclick="showPage('dashboard')" title="My Library">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>My Library</span>
           </button>
-          <div id="user-dropdown" class="user-dropdown hidden">
-            <div class="drop-header">
-              <div class="avatar-circle-lg" id="drop-initials">U</div>
-              <div class="drop-info">
-                <strong id="drop-name"></strong>
-                <span id="drop-email"></span>
-                <span id="drop-role-badge" class="role-badge"></span>
+          <button class="avatar-btn" onclick="toggleUserMenu()" id="avatar-trigger" aria-label="User menu">
+            <span class="avatar" id="user-initials">U</span>
+          </button>
+          <div id="user-dropdown" class="dropdown hidden">
+            <div class="dropdown-header">
+              <span class="avatar avatar-lg" id="drop-initials">U</span>
+              <div>
+                <div class="fw-600 fs-sm" id="drop-name"></div>
+                <div class="text-muted fs-xs" id="drop-email"></div>
+                <span class="badge-role mt-xs" id="drop-role"></span>
               </div>
             </div>
-            <div class="drop-menu">
-              <button class="drop-item" onclick="showPage('dashboard'); closeUserMenu()">📖 My Library</button>
-              <button class="drop-item hidden" id="admin-nav-link" onclick="showPage('admin'); closeUserMenu()">⚙️ Admin Panel</button>
-              <button class="drop-item danger" onclick="signOut()">↩ Sign Out</button>
-            </div>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item" onclick="showPage('dashboard'); closeUserMenu()">
+              <svg viewBox="0 0 20 20" fill="none"><path d="M9 5H7a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h0a2 2 0 002-2M9 5a2 2 0 012-2h0a2 2 0 012 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              My Library
+            </button>
+            <button class="dropdown-item hidden" id="admin-link" onclick="showPage('admin'); closeUserMenu()">
+              <svg viewBox="0 0 20 20" fill="none"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/></svg>
+              Admin Panel
+            </button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item text-danger" onclick="signOut()">
+              <svg viewBox="0 0 20 20" fill="none"><path d="M13 7l5 3-5 3V7z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 10H3M9 5H5a2 2 0 00-2 2v6a2 2 0 002 2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Sign Out
+            </button>
           </div>
         </div>
 
-        <button class="hamburger" onclick="toggleMobileMenu()" id="hamburger-btn" aria-label="Menu">
+        <!-- Hamburger -->
+        <button class="hamburger" id="hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
           <span></span><span></span><span></span>
         </button>
       </div>
     </div>
 
-    <!-- Mobile nav drawer -->
-    <div class="mobile-drawer hidden" id="mobile-menu">
-      <div class="mobile-search-row">
-        <input type="search" placeholder="Search books…" oninput="handleSearch(event)" class="mobile-search-input" autocomplete="off" />
+    <!-- Mobile drawer -->
+    <div class="mobile-drawer hidden" id="mobile-drawer">
+      <div class="mob-search">
+        <svg viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input type="search" placeholder="Search books…" oninput="handleSearch(event)" autocomplete="off" />
       </div>
-      <div class="mobile-links">
-        <button class="mob-link" onclick="showPage('home'); closeMobileMenu()">🏠 Home</button>
-        <button class="mob-link hidden" id="mob-dash-link" onclick="showPage('dashboard'); closeMobileMenu()">📖 My Library</button>
-        <button class="mob-link hidden" id="mob-admin-link" onclick="showPage('admin'); closeMobileMenu()">⚙️ Admin</button>
-        <button class="mob-link" onclick="openCart(); closeMobileMenu()">🛒 Cart <span id="mob-cart-count" class="mob-badge">0</span></button>
+      <div class="mob-links">
+        <button class="mob-link" onclick="showPage('home'); closeMobileMenu()">Home</button>
+        <button class="mob-link hidden" id="mob-lib" onclick="showPage('dashboard'); closeMobileMenu()">My Library</button>
+        <button class="mob-link hidden" id="mob-admin" onclick="showPage('admin'); closeMobileMenu()">Admin Panel</button>
+        <button class="mob-link" onclick="toggleCart(); closeMobileMenu()">
+          Cart <span class="badge ml-xs" id="mob-cart-badge">0</span>
+        </button>
       </div>
-      <div id="mob-auth-out" class="mobile-auth">
+      <div id="mob-auth-out" class="mob-auth">
         <button class="btn btn-ghost w-full" onclick="openAuth('login'); closeMobileMenu()">Login</button>
         <button class="btn btn-primary w-full" onclick="openAuth('register'); closeMobileMenu()">Register</button>
       </div>
-      <button class="mob-link danger hidden" id="mob-signout" onclick="signOut()">↩ Sign Out</button>
+      <button class="mob-link text-danger hidden" id="mob-signout" onclick="signOut()">Sign Out</button>
     </div>
   </nav>
 
   <!-- Setup banner -->
   <div id="setup-banner" class="setup-banner hidden">
-    ⚠️ GAS not connected. Open <code>script.js</code> and set <code>GAS_URL</code> and <code>UPI_ID</code>.
+    GAS not configured. Open <code>script.js</code> and set <code>GAS_URL</code> and <code>UPI_ID</code>.
   </div>
 
-  <!-- ══════════ PAGE: HOME ══════════ -->
+  <!-- ══════════════════════════════════════════
+       PAGE: HOME
+  ══════════════════════════════════════════ -->
   <main id="page-home" class="page active">
 
     <!-- Hero -->
     <section class="hero">
-      <div class="hero-content">
-        <div class="hero-pill">🎉 First Book Absolutely Free</div>
-        <h1 class="hero-title">Learn more.<br /><span class="gradient-text">Pay less.</span></h1>
-        <p class="hero-sub">Handpicked eBooks & study materials for toppers.</p>
-        <div class="hero-search-box">
-          <span class="hs-icon">🔍</span>
-          <input type="search" id="hero-search" placeholder="Search title, subject, keyword…" oninput="handleSearch(event)" autocomplete="off" />
+      <div class="container">
+        <div class="hero-content">
+          <h1 class="hero-title">Premium study materials<br/>for ambitious learners</h1>
+          <p class="hero-sub">Handpicked eBooks for Class 9, Class 10, JEE, NEET and more.</p>
+          <div class="hero-search">
+            <svg viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <input type="search" id="hero-search-input" placeholder="Search by title, subject, topic…" oninput="handleSearch(event)" autocomplete="off" />
+          </div>
         </div>
-        <div class="filter-row">
-          <button class="filter-chip active" onclick="setFilter('all', this)" data-filter="all">All</button>
-          <button class="filter-chip" onclick="setFilter('premium', this)" data-filter="premium">Premium</button>
-          <button class="filter-chip" onclick="setFilter('free', this)" data-filter="free">Free</button>
-        </div>
-      </div>
-      <div class="hero-badges">
-        <span class="hero-badge-item">🔒 Secure</span>
-        <span class="hero-badge-item">⭐ 10k+ Toppers</span>
-        <span class="hero-badge-item">📚 First Book Free</span>
-        <span class="hero-badge-item">✅ Verified Content</span>
       </div>
     </section>
+
+    <!-- Filter + Sort Bar -->
+    <div class="filter-bar-wrapper">
+      <div class="container">
+        <div class="filter-bar">
+          <div class="filter-chips" id="filter-chips">
+            <button class="chip active" onclick="setCategory('all', this)">All</button>
+            <button class="chip" onclick="setCategory('Class 9', this)">Class 9</button>
+            <button class="chip" onclick="setCategory('Class 10', this)">Class 10</button>
+            <button class="chip" onclick="setCategory('Class 11', this)">Class 11</button>
+            <button class="chip" onclick="setCategory('Class 12', this)">Class 12</button>
+            <button class="chip" onclick="setCategory('JEE', this)">JEE</button>
+            <button class="chip" onclick="setCategory('NEET', this)">NEET</button>
+            <button class="chip" onclick="setCategory('Other', this)">Other</button>
+          </div>
+          <div class="sort-select-wrap">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M3 5h14M6 10h8M9 15h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <select id="sort-select" onchange="handleSort(this.value)" aria-label="Sort books">
+              <option value="newest">Newest</option>
+              <option value="popular">Most Popular</option>
+              <option value="rating">Top Rated</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Books grid -->
     <section class="books-section">
       <div class="container">
-        <div id="books-loading" class="loading-grid">
+        <div id="books-loading" class="skeleton-grid">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
           <div class="skeleton-card"></div>
           <div class="skeleton-card"></div>
           <div class="skeleton-card"></div>
@@ -127,344 +184,408 @@
         </div>
         <div id="books-grid" class="books-grid hidden"></div>
         <div id="books-empty" class="empty-state hidden">
-          <div class="empty-icon">📭</div>
+          <svg viewBox="0 0 64 64" fill="none"><rect x="8" y="8" width="48" height="48" rx="8" stroke="var(--border)" stroke-width="2"/><path d="M24 24h16M24 32h16M24 40h10" stroke="var(--border)" stroke-width="2" stroke-linecap="round"/></svg>
           <h3>No books found</h3>
-          <p>Try a different search or filter.</p>
+          <p>Try a different search term or category.</p>
         </div>
       </div>
     </section>
-
   </main>
 
-  <!-- ══════════ PAGE: DASHBOARD ══════════ -->
+  <!-- ══════════════════════════════════════════
+       PAGE: BOOK DETAIL
+  ══════════════════════════════════════════ -->
+  <main id="page-book" class="page hidden">
+    <div class="container book-detail-container">
+      <button class="back-btn" onclick="showPage('home')">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M13 15l-5-5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Back to Books
+      </button>
+      <div id="book-detail-content"></div>
+    </div>
+  </main>
+
+  <!-- ══════════════════════════════════════════
+       PAGE: DASHBOARD (MY LIBRARY)
+  ══════════════════════════════════════════ -->
   <main id="page-dashboard" class="page hidden">
-    <div class="container page-container">
-      <div class="dash-hero">
-        <div class="dash-avatar" id="dash-initials-circle">U</div>
-        <div class="dash-hero-info">
+    <div class="container page-pad">
+
+      <div class="dash-header">
+        <div class="avatar avatar-xl" id="dash-avatar">U</div>
+        <div class="dash-header-info">
           <h2 id="dash-name">Loading…</h2>
-          <p id="dash-email" class="text-muted"></p>
-          <span id="dash-role-badge" class="role-badge"></span>
-        </div>
-        <div class="dash-stats-row">
-          <div class="stat-pill"><span id="stat-purchased">0</span> Books</div>
-          <div class="stat-pill"><span id="stat-pending">0</span> Pending</div>
+          <p class="text-muted fs-sm" id="dash-email"></p>
+          <div class="dash-stats">
+            <span class="stat-chip"><span id="stat-books">0</span> Books Owned</span>
+            <span class="stat-chip warn"><span id="stat-pending">0</span> Pending</span>
+          </div>
         </div>
       </div>
 
-      <div class="tab-nav">
-        <button class="tab-btn active" onclick="switchDashTab('my-books', this)">My Library</button>
-        <button class="tab-btn" onclick="switchDashTab('pending', this)">Pending</button>
-        <button class="tab-btn" onclick="switchDashTab('profile', this)">Profile</button>
+      <div class="tab-bar">
+        <button class="tab active" onclick="switchDashTab('library', this)">My Library</button>
+        <button class="tab" onclick="switchDashTab('orders', this)">Orders</button>
+        <button class="tab" onclick="switchDashTab('profile', this)">Profile</button>
       </div>
 
-      <div id="dash-tab-my-books" class="dash-tab active">
-        <div id="my-books-grid" class="books-grid"></div>
-        <div id="my-books-empty" class="empty-state hidden">
-          <div class="empty-icon">📚</div>
+      <div id="dash-library" class="tab-panel active">
+        <div id="lib-grid" class="books-grid"></div>
+        <div id="lib-empty" class="empty-state hidden">
+          <svg viewBox="0 0 64 64" fill="none"><rect x="8" y="8" width="48" height="48" rx="8" stroke="var(--border)" stroke-width="2"/><path d="M24 24h16M24 32h16M24 40h10" stroke="var(--border)" stroke-width="2" stroke-linecap="round"/></svg>
           <h3>No books yet</h3>
-          <p>Browse the store and grab your first book free!</p>
+          <p>Browse the store and purchase your first book.</p>
           <button class="btn btn-primary" onclick="showPage('home')">Browse Books</button>
         </div>
       </div>
 
-      <div id="dash-tab-pending" class="dash-tab hidden">
-        <div id="pending-list" class="pending-list"></div>
-        <div id="pending-empty" class="empty-state hidden">
-          <div class="empty-icon">✅</div>
-          <h3>No pending payments</h3>
-          <p>All purchases have been reviewed.</p>
+      <div id="dash-orders" class="tab-panel hidden">
+        <div id="orders-list"></div>
+        <div id="orders-empty" class="empty-state hidden">
+          <svg viewBox="0 0 64 64" fill="none"><path d="M16 8h32l8 16v32H8V24L16 8z" stroke="var(--border)" stroke-width="2" stroke-linejoin="round"/><path d="M8 24h48M24 24V8M40 24V8" stroke="var(--border)" stroke-width="2" stroke-linecap="round"/></svg>
+          <h3>No orders yet</h3>
+          <p>Your purchases will appear here once you've bought a book.</p>
         </div>
       </div>
 
-      <div id="dash-tab-profile" class="dash-tab hidden">
+      <div id="dash-profile" class="tab-panel hidden">
         <div class="profile-card">
-          <div class="avatar-circle-xxl" id="profile-initials-circle">U</div>
+          <div class="avatar avatar-xxl" id="profile-avatar">U</div>
           <h3 id="profile-name"></h3>
-          <p id="profile-email" class="text-muted"></p>
-          <p id="profile-username" class="text-sm text-muted"></p>
-          <span id="profile-role" class="role-badge mt-sm"></span>
+          <p class="text-muted" id="profile-email"></p>
+          <p class="text-muted fs-sm" id="profile-username"></p>
+          <span class="badge-role mt-sm" id="profile-role"></span>
         </div>
       </div>
     </div>
   </main>
 
-  <!-- ══════════ PAGE: ADMIN ══════════ -->
+  <!-- ══════════════════════════════════════════
+       PAGE: ADMIN
+  ══════════════════════════════════════════ -->
   <main id="page-admin" class="page hidden">
-    <div class="container page-container">
+    <div class="container page-pad">
       <h2 class="page-title">Admin Panel</h2>
 
-      <div class="analytics-grid">
-        <div class="a-card"><div class="a-icon">👥</div><div class="a-num" id="a-users">—</div><div class="a-label">Users</div></div>
-        <div class="a-card"><div class="a-icon">📚</div><div class="a-num" id="a-books">—</div><div class="a-label">Books</div></div>
-        <div class="a-card"><div class="a-icon">🛒</div><div class="a-num" id="a-sales">—</div><div class="a-label">Sales</div></div>
-        <div class="a-card"><div class="a-icon">💰</div><div class="a-num" id="a-revenue">—</div><div class="a-label">Revenue</div></div>
-        <div class="a-card warn"><div class="a-icon">⏳</div><div class="a-num" id="a-pending">—</div><div class="a-label">Pending</div></div>
+      <!-- Analytics cards -->
+      <div class="analytics-grid" id="analytics-grid">
+        <div class="a-card"><div class="a-label">Total Users</div><div class="a-val" id="a-users">—</div></div>
+        <div class="a-card"><div class="a-label">Total Books</div><div class="a-val" id="a-books">—</div></div>
+        <div class="a-card"><div class="a-label">Total Sales</div><div class="a-val" id="a-sales">—</div></div>
+        <div class="a-card accent"><div class="a-label">Revenue</div><div class="a-val" id="a-revenue">—</div></div>
+        <div class="a-card warn"><div class="a-label">Pending</div><div class="a-val" id="a-pending">—</div></div>
       </div>
 
-      <div class="tab-nav">
-        <button class="tab-btn active" onclick="switchAdminTab('payments', this)">Payments</button>
-        <button class="tab-btn" onclick="switchAdminTab('books', this)">Add Book</button>
-        <button class="tab-btn" onclick="switchAdminTab('coupons', this)">Coupons</button>
+      <div class="tab-bar">
+        <button class="tab active" onclick="switchAdminTab('orders', this)">Orders</button>
+        <button class="tab" onclick="switchAdminTab('books', this)">Books</button>
+        <button class="tab" onclick="switchAdminTab('add-book', this)">Add Book</button>
+        <button class="tab" onclick="switchAdminTab('coupons', this)">Coupons</button>
+        <button class="tab" onclick="switchAdminTab('users', this)">Users</button>
       </div>
 
-      <div id="admin-tab-payments" class="admin-tab active">
-        <div id="payments-loading" class="text-center text-muted p-lg">Loading…</div>
-        <div id="payments-list" class="payments-list hidden"></div>
-        <div id="payments-empty" class="empty-state hidden"><div class="empty-icon">📋</div><h3>No payment requests</h3></div>
+      <!-- Orders -->
+      <div id="admin-orders" class="tab-panel active">
+        <div id="admin-orders-loading" class="text-center text-muted p-lg">Loading…</div>
+        <div id="admin-orders-list" class="hidden"></div>
+        <div id="admin-orders-empty" class="empty-state hidden">
+          <h3>No payment requests</h3>
+        </div>
       </div>
 
-      <div id="admin-tab-books" class="admin-tab hidden">
+      <!-- Books list -->
+      <div id="admin-books" class="tab-panel hidden">
+        <div id="admin-books-loading" class="text-center text-muted p-lg">Loading…</div>
+        <div id="admin-books-list" class="hidden"></div>
+      </div>
+
+      <!-- Add Book -->
+      <div id="admin-add-book" class="tab-panel hidden">
         <div class="form-card">
           <h3>Add New Book</h3>
-          <div class="form-group"><label>Title *</label><input type="text" id="b-title" placeholder="Book title" /></div>
-          <div class="form-row">
-            <div class="form-group"><label>Price (₹)</label><input type="number" id="b-price" placeholder="0 for free" min="0" /></div>
-            <div class="form-group"><label>Type</label><select id="b-type"><option value="premium">Premium</option><option value="free">Free</option></select></div>
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label>Title *</label>
+              <input type="text" id="b-title" placeholder="Book title" />
+            </div>
+            <div class="form-group">
+              <label>Category</label>
+              <select id="b-category">
+                <option value="Class 9">Class 9</option>
+                <option value="Class 10">Class 10</option>
+                <option value="Class 11">Class 11</option>
+                <option value="Class 12">Class 12</option>
+                <option value="JEE">JEE</option>
+                <option value="NEET">NEET</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Price (₹) *</label>
+              <input type="number" id="b-price" placeholder="199" min="1" />
+            </div>
+            <div class="form-group">
+              <label>Initial Rating (1–5)</label>
+              <input type="number" id="b-rating" placeholder="0" min="0" max="5" step="0.1" />
+            </div>
+            <div class="form-group">
+              <label>Keywords (comma-separated)</label>
+              <input type="text" id="b-keywords" placeholder="math, algebra, class 10" />
+            </div>
+            <div class="form-group span-2">
+              <label>Description</label>
+              <textarea id="b-desc" rows="3" placeholder="Brief description of this book…"></textarea>
+            </div>
+            <div class="form-group span-2">
+              <label>Thumbnail URL</label>
+              <input type="url" id="b-thumb" placeholder="https://…" />
+            </div>
+            <div class="form-group span-2">
+              <label>PDF URL *</label>
+              <input type="url" id="b-pdf" placeholder="https://…" />
+            </div>
           </div>
-          <div class="form-group"><label>Description</label><textarea id="b-desc" rows="3" placeholder="Brief description…"></textarea></div>
-          <div class="form-group"><label>Thumbnail URL</label><input type="url" id="b-thumb" placeholder="https://…" /></div>
-          <div class="form-group"><label>PDF URL *</label><input type="url" id="b-pdf" placeholder="https://…" /></div>
-          <div class="form-group"><label>Keywords (comma-separated)</label><input type="text" id="b-keywords" placeholder="math, algebra, class 12" /></div>
           <button class="btn btn-primary" id="add-book-btn" onclick="submitAddBook()">Add Book</button>
         </div>
       </div>
 
-      <div id="admin-tab-coupons" class="admin-tab hidden">
-        <div class="form-card">
+      <!-- Coupons -->
+      <div id="admin-coupons" class="tab-panel hidden">
+        <div class="form-card" style="margin-bottom:24px">
           <h3>Create Coupon</h3>
-          <div class="form-row">
-            <div class="form-group"><label>Code *</label><input type="text" id="c-code" placeholder="SAVE20" style="text-transform:uppercase" /></div>
-            <div class="form-group"><label>Type</label><select id="c-type"><option value="percent">Percentage (%)</option><option value="fixed">Fixed (₹)</option></select></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Value *</label><input type="number" id="c-value" placeholder="20" min="1" /></div>
-            <div class="form-group"><label>Expiry *</label><input type="date" id="c-expiry" /></div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Code *</label>
+              <input type="text" id="c-code" placeholder="SAVE20" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" />
+            </div>
+            <div class="form-group">
+              <label>Type</label>
+              <select id="c-type">
+                <option value="percent">Percentage (%)</option>
+                <option value="fixed">Fixed Amount (₹)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Value *</label>
+              <input type="number" id="c-value" placeholder="20" min="1" />
+            </div>
+            <div class="form-group">
+              <label>Expiry *</label>
+              <input type="date" id="c-expiry" />
+            </div>
           </div>
           <button class="btn btn-primary" onclick="submitAddCoupon()">Create Coupon</button>
         </div>
-        <div class="mt-lg">
-          <h3 class="section-title">Existing Coupons</h3>
-          <div id="coupons-list" class="coupons-list"></div>
-        </div>
+        <div id="coupons-list"></div>
       </div>
+
+      <!-- Users -->
+      <div id="admin-users" class="tab-panel hidden">
+        <div id="admin-users-loading" class="text-center text-muted p-lg">Loading…</div>
+        <div id="admin-users-list" class="hidden"></div>
+      </div>
+
     </div>
   </main>
 
-  <!-- ══════════ AUTH MODAL ══════════ -->
-  <div id="auth-modal" class="overlay hidden" onclick="closeAuthModal(event)">
-    <div class="modal-box auth-box" onclick="event.stopPropagation()">
-      <button class="close-btn" onclick="closeAuthModal()">✕</button>
-      <div class="modal-brand">
-        <span>📚</span> <strong>EduBooks</strong>
+  <!-- ══════════════════════════════════════════
+       CART SIDEBAR
+  ══════════════════════════════════════════ -->
+  <div class="overlay hidden" id="cart-overlay" onclick="toggleCart()"></div>
+  <aside class="cart-sidebar hidden" id="cart-sidebar">
+    <div class="cart-header">
+      <h3>Your Cart <span class="text-muted fw-400 fs-sm" id="cart-count-label"></span></h3>
+      <button class="icon-close" onclick="toggleCart()" aria-label="Close cart">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div id="cart-items" class="cart-items"></div>
+    <div id="cart-empty" class="cart-empty hidden">
+      <svg viewBox="0 0 64 64" fill="none"><path d="M16 8h32l8 16v32H8V24L16 8z" stroke="var(--border)" stroke-width="2" stroke-linejoin="round"/><path d="M8 24h48" stroke="var(--border)" stroke-width="2"/></svg>
+      <p>Your cart is empty</p>
+    </div>
+    <div id="cart-footer" class="cart-footer hidden">
+      <div class="cart-total-row">
+        <span>Total</span>
+        <span class="fw-700" id="cart-total">₹0</span>
       </div>
-      <div class="auth-tabs">
-        <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Login</button>
-        <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Register</button>
-        <button class="auth-tab" id="tab-admin" onclick="switchAuthTab('admin')">Admin</button>
+      <button class="btn btn-primary w-full" onclick="proceedToCheckout()">Proceed to Checkout</button>
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════════════════════
+       AUTH MODAL
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay hidden" id="auth-modal" onclick="closeModal('auth-modal', event)">
+    <div class="modal">
+      <div class="modal-tabs">
+        <button class="modal-tab active" id="tab-login" onclick="switchAuthTab('login')">Login</button>
+        <button class="modal-tab" id="tab-register" onclick="switchAuthTab('register')">Register</button>
+        <button class="modal-tab" id="tab-admin" onclick="switchAuthTab('admin')">Admin</button>
       </div>
 
-      <!-- LOGIN -->
-      <div id="form-login" class="auth-form">
-        <p class="auth-hint">Welcome back! Sign in to continue.</p>
-        <div class="form-group">
-          <label>Email</label>
-          <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" />
+      <!-- Login -->
+      <div id="form-login">
+        <div class="modal-body">
+          <h2 class="modal-title">Welcome back</h2>
+          <p class="text-muted fs-sm mb-lg">Sign in to access your library.</p>
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="login-username" placeholder="your_username" autocomplete="username" onkeydown="if(event.key==='Enter')submitLogin()" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <div class="input-with-toggle">
+              <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitLogin()" />
+              <button type="button" class="pw-toggle" onclick="togglePw('login-password', this)">Show</button>
+            </div>
+          </div>
+          <button class="btn btn-primary w-full mt-sm" id="login-btn" onclick="submitLogin()">Sign In</button>
         </div>
-        <div class="form-group">
-          <label>Password</label>
-          <div class="pw-wrap">
-            <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" />
-            <button type="button" class="pw-eye" onclick="togglePw('login-password', this)">👁</button>
+      </div>
+
+      <!-- Register -->
+      <div id="form-register" class="hidden">
+        <div class="modal-body">
+          <h2 class="modal-title">Create account</h2>
+          <p class="text-muted fs-sm mb-lg">Join thousands of students on EduBooks.</p>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Full Name</label>
+              <input type="text" id="reg-name" placeholder="Your name" />
+            </div>
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" id="reg-username" placeholder="username" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="reg-email" placeholder="you@example.com" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <div class="input-with-toggle">
+              <input type="password" id="reg-password" placeholder="Min 6 characters" />
+              <button type="button" class="pw-toggle" onclick="togglePw('reg-password', this)">Show</button>
+            </div>
+          </div>
+          <button class="btn btn-primary w-full mt-sm" id="register-btn" onclick="submitRegister()">Create Account</button>
+        </div>
+      </div>
+
+      <!-- Admin -->
+      <div id="form-admin" class="hidden">
+        <div class="modal-body">
+          <h2 class="modal-title">Admin Login</h2>
+          <p class="text-muted fs-sm mb-lg">Restricted area — admin credentials only.</p>
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="admin-username" placeholder="admin" onkeydown="if(event.key==='Enter')submitAdminLogin()" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <div class="input-with-toggle">
+              <input type="password" id="admin-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitAdminLogin()" />
+              <button type="button" class="pw-toggle" onclick="togglePw('admin-password', this)">Show</button>
+            </div>
+          </div>
+          <button class="btn btn-primary w-full mt-sm" id="admin-login-btn" onclick="submitAdminLogin()">Admin Login</button>
+        </div>
+      </div>
+
+      <button class="modal-close" onclick="closeModal('auth-modal')" aria-label="Close">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       CHECKOUT MODAL
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay hidden" id="checkout-modal" onclick="closeModal('checkout-modal', event)">
+    <div class="modal modal-lg">
+      <div class="modal-body">
+        <h2 class="modal-title">Checkout</h2>
+
+        <!-- Order summary -->
+        <div class="checkout-summary" id="checkout-summary"></div>
+
+        <!-- Coupon -->
+        <div class="coupon-row">
+          <input type="text" id="coupon-input" placeholder="Coupon code" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" />
+          <button class="btn btn-ghost btn-sm" onclick="applyCoupon()">Apply</button>
+        </div>
+        <div id="coupon-status" class="coupon-status hidden"></div>
+
+        <!-- Price breakdown -->
+        <div class="price-breakdown" id="price-breakdown"></div>
+
+        <!-- Payment section -->
+        <div class="pay-section">
+          <p class="fs-sm fw-600 mb-sm">Pay via UPI</p>
+          <div class="pay-section-inner">
+            <!-- QR Code -->
+            <div class="qr-wrap">
+              <img id="qr-img" src="" alt="UPI QR Code" title="Click to enlarge" onclick="enlargeQR()" />
+              <p class="text-muted fs-xs mt-xs text-center">Tap to enlarge</p>
+            </div>
+            <!-- UPI ID + copy -->
+            <div class="upi-details">
+              <div class="upi-box" id="upi-box">
+                <span id="upi-id-text"></span>
+                <button class="btn btn-ghost btn-sm" onclick="copyUpi()">Copy</button>
+              </div>
+              <p class="text-muted fs-xs mt-xs">Scan the QR or use the UPI ID above. Transfer the exact amount, then upload your screenshot below.</p>
+            </div>
           </div>
         </div>
-        <button class="btn btn-primary w-full" id="login-btn" onclick="submitLogin()">Sign In</button>
-        <p class="switch-hint">No account? <a href="#" onclick="switchAuthTab('register')">Register free</a></p>
-      </div>
 
-      <!-- REGISTER -->
-      <div id="form-register" class="auth-form hidden">
-        <p class="auth-hint">Create your student account — first book is free! 🎉</p>
-        <div class="form-row">
-          <div class="form-group"><label>Full Name *</label><input type="text" id="reg-name" placeholder="Your name" autocomplete="name" /></div>
-          <div class="form-group"><label>Username *</label><input type="text" id="reg-username" placeholder="cool_student" autocomplete="username" /></div>
-        </div>
-        <div class="form-group"><label>Email *</label><input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email" /></div>
-        <div class="form-group">
-          <label>Password *</label>
-          <div class="pw-wrap">
-            <input type="password" id="reg-password" placeholder="Min 6 characters" minlength="6" autocomplete="new-password" />
-            <button type="button" class="pw-eye" onclick="togglePw('reg-password', this)">👁</button>
+        <div class="form-group mt-md">
+          <label>Payment Screenshot *</label>
+          <div class="upload-zone" id="upload-zone" onclick="document.getElementById('screenshot-input').click()">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="upload-label">Click to upload screenshot</span>
           </div>
+          <input type="file" id="screenshot-input" accept="image/*" onchange="handleScreenshot(event)" style="display:none" />
         </div>
-        <button class="btn btn-primary w-full" id="register-btn" onclick="submitRegister()">Create Account</button>
-        <p class="switch-hint">Have an account? <a href="#" onclick="switchAuthTab('login')">Login here</a></p>
-      </div>
 
-      <!-- ADMIN -->
-      <div id="form-admin" class="auth-form hidden">
-        <p class="auth-hint">Admin access only. Not for students.</p>
-        <div class="form-group"><label>Admin Username</label><input type="text" id="admin-username" placeholder="admin" autocomplete="username" /></div>
-        <div class="form-group">
-          <label>Admin Password</label>
-          <div class="pw-wrap">
-            <input type="password" id="admin-password" placeholder="Admin password" autocomplete="current-password" />
-            <button type="button" class="pw-eye" onclick="togglePw('admin-password', this)">👁</button>
-          </div>
-        </div>
-        <button class="btn btn-primary w-full" id="admin-login-btn" onclick="submitAdminLogin()">Admin Login</button>
+        <button class="btn btn-primary w-full mt-md" id="submit-payment-btn" onclick="submitPayment()">Submit Payment Request</button>
       </div>
-
-      <div class="auth-footer-trust">
-        <span>🔒 Secure</span><span>🛡️ SSL</span><span>✅ Verified</span>
-      </div>
+      <button class="modal-close" onclick="closeModal('checkout-modal')" aria-label="Close">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
     </div>
   </div>
 
-  <!-- ══════════ BOOK DETAIL MODAL ══════════ -->
-  <div id="book-modal" class="overlay hidden" onclick="closeBookModal(event)">
-    <div class="modal-box book-detail-box" onclick="event.stopPropagation()">
-      <button class="close-btn" onclick="closeBookModal()">✕</button>
-      <div class="book-detail-cover">
-        <img id="bm-thumb" src="" alt="" onerror="this.style.display='none'" />
-        <div class="book-detail-cover-placeholder hidden" id="bm-placeholder">📖</div>
-      </div>
-      <div class="book-detail-body">
-        <div class="book-detail-meta">
-          <span id="bm-badge" class="role-badge"></span>
-          <span id="bm-price-display" class="detail-price"></span>
+  <!-- ══════════════════════════════════════════
+       PREVIEW MODAL (Book reader preview)
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay hidden" id="preview-modal" onclick="closeModal('preview-modal', event)">
+    <div class="modal modal-preview">
+      <div class="modal-body p-0">
+        <div class="preview-toolbar">
+          <span id="preview-title" class="fw-600 fs-sm"></span>
+          <button class="btn btn-ghost btn-sm" onclick="closeModal('preview-modal')">Close</button>
         </div>
-        <h2 id="bm-title"></h2>
-        <p id="bm-desc" class="bm-desc-text"></p>
-        <div id="bm-keywords" class="bm-keywords"></div>
-        <div class="book-detail-actions">
-          <button class="btn btn-primary flex-1" id="bm-buy-btn" onclick="bm_buy()"></button>
-          <button class="btn btn-ghost" id="bm-cart-btn" onclick="bm_cart()">🛒 Add to Cart</button>
-        </div>
+        <iframe id="preview-iframe" src="" title="Book Preview" allowfullscreen></iframe>
       </div>
+      <button class="modal-close" onclick="closeModal('preview-modal')" aria-label="Close">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
     </div>
   </div>
 
-  <!-- ══════════ PAYMENT MODAL ══════════ -->
-  <div id="payment-modal" class="overlay hidden" onclick="closePaymentModal(event)">
-    <div class="modal-box pay-box" onclick="event.stopPropagation()">
-      <button class="close-btn" onclick="closePaymentModal()">✕</button>
-      <h2 class="modal-title">Complete Purchase</h2>
-
-      <div class="pay-book-row">
-        <img id="pm-thumb" src="" alt="" onerror="this.style.display='none'" class="pay-thumb" />
-        <div>
-          <strong id="pm-title"></strong>
-          <p class="text-muted text-sm" id="pm-desc"></p>
-        </div>
-      </div>
-
-      <!-- Free notice -->
-      <div id="pm-free-notice" class="free-notice hidden"></div>
-
-      <!-- QR (paid only) -->
-      <div id="pm-qr-section" class="qr-section hidden">
-        <div class="qr-box" onclick="openQrFull()" title="Tap to enlarge">
-          <img id="pm-qr" src="" alt="UPI QR Code" class="qr-img" />
-          <div class="qr-info">
-            <p class="qr-label">Pay via UPI</p>
-            <p class="qr-upi-id" id="pm-upi"></p>
-            <p class="qr-apps">PhonePe · GPay · Paytm</p>
-          </div>
-        </div>
-        <p class="qr-hint">👆 Tap QR to enlarge</p>
-      </div>
-
-      <!-- Price breakdown -->
-      <div class="price-box">
-        <div class="price-row"><span>Book Price</span><span id="pm-price">₹0</span></div>
-        <div class="price-row hidden" id="pm-discount-row"><span>Coupon Discount</span><span id="pm-discount" class="text-success">-₹0</span></div>
-        <div class="price-row total-row"><span>Total Payable</span><span id="pm-total" class="total-amount">₹0</span></div>
-      </div>
-
-      <!-- Coupon (paid only) -->
-      <div id="pm-coupon-section" class="coupon-row hidden">
-        <input type="text" id="coupon-input" placeholder="Coupon code" style="text-transform:uppercase; flex:1" />
-        <button class="btn btn-ghost btn-sm" onclick="applyCoupon()" id="coupon-btn">Apply</button>
-        <p id="coupon-msg" class="coupon-msg"></p>
-      </div>
-
-      <!-- Screenshot upload (paid only) -->
-      <div id="pm-upload-section" class="upload-section hidden">
-        <input type="file" id="screenshot-input" accept="image/*" onchange="previewScreenshot(event)" hidden />
-        <div class="upload-box" id="upload-box" onclick="document.getElementById('screenshot-input').click()">
-          <div id="upload-placeholder">
-            <div class="upload-icon">📸</div>
-            <p>Tap to upload payment screenshot</p>
-            <p class="text-sm text-muted">JPG, PNG — max 5MB</p>
-          </div>
-          <img id="screenshot-preview" class="screenshot-preview hidden" src="" alt="Preview" />
-        </div>
-      </div>
-
-      <button class="btn btn-primary w-full" id="submit-payment-btn" onclick="handlePaymentSubmit()">Submit</button>
-      <p id="pm-footer-note" class="pay-note text-muted"></p>
+  <!-- QR Enlarge Overlay -->
+  <div class="qr-overlay hidden" id="qr-overlay" onclick="this.classList.add('hidden')">
+    <div class="qr-overlay-box">
+      <img id="qr-overlay-img" src="" alt="UPI QR Code" />
+      <p class="text-muted fs-sm mt-sm text-center">Tap anywhere to close</p>
     </div>
   </div>
-
-  <!-- ══════════ QR FULLSCREEN ══════════ -->
-  <div id="qr-fullscreen" class="overlay hidden" onclick="closeQrFull(event)">
-    <div class="qr-full-box" onclick="event.stopPropagation()">
-      <h3>📱 Scan to Pay</h3>
-      <p>Open PhonePe, GPay, or Paytm and scan</p>
-      <img id="qr-full-img" src="" alt="QR Code" class="qr-full-img" />
-      <span id="qr-full-upi" class="qr-full-upi"></span>
-      <button class="btn btn-ghost w-full mt-md" onclick="closeQrFull()">Close</button>
-    </div>
-  </div>
-
-  <!-- ══════════ CART MODAL ══════════ -->
-  <div id="cart-modal" class="overlay hidden" onclick="closeCart(event)">
-    <div class="modal-box cart-box" onclick="event.stopPropagation()">
-      <button class="close-btn" onclick="closeCart()">✕</button>
-      <h2 class="modal-title">🛒 Your Cart</h2>
-      <div id="cart-items" class="cart-items"></div>
-      <div id="cart-empty" class="empty-state hidden">
-        <div class="empty-icon">🛒</div>
-        <h3>Cart is empty</h3>
-        <p>Add books from the store.</p>
-      </div>
-      <div id="cart-footer" class="cart-footer hidden">
-        <div class="cart-total-row">
-          <span>Total</span>
-          <span id="cart-total-display" class="cart-total-amount"></span>
-        </div>
-        <button class="btn btn-primary w-full" onclick="checkoutCart()">Checkout All</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════════ PDF MODAL ══════════ -->
-  <div id="pdf-modal" class="overlay hidden" onclick="closePdfModal(event)">
-    <div class="modal-box pdf-box" onclick="event.stopPropagation()">
-      <div class="pdf-header">
-        <h3 id="pdf-title"></h3>
-        <button class="close-btn" style="position:static" onclick="closePdfModal()">✕</button>
-      </div>
-      <iframe id="pdf-frame" class="pdf-frame" src="" allow="fullscreen"></iframe>
-    </div>
-  </div>
-
-  <!-- ══════════ FOOTER ══════════ -->
-  <footer class="footer">
-    <div class="container footer-inner">
-      <div class="brand">
-        <span>📚</span> <strong>EduBooks</strong>
-      </div>
-      <div class="footer-trust">
-        <span>🔒 Secure Payments</span>
-        <span>📚 First Book Free</span>
-        <span>⭐ 10k+ Toppers</span>
-      </div>
-      <p class="text-sm text-muted">© 2025 EduBooks. All rights reserved.</p>
-    </div>
-  </footer>
 
   <script src="script.js"></script>
 </body>
 </html>
+
+
