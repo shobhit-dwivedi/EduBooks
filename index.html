@@ -571,6 +571,8 @@
         </div>
         <div id="preview-wrap" class="preview-wrap">
           <iframe id="preview-iframe" src="" title="Book Preview" allowfullscreen></iframe>
+          <!-- Transparent blocker: intercepts ALL touch/mouse/scroll events in preview mode -->
+          <div id="preview-blocker" class="preview-blocker hidden"></div>
           <div class="preview-fade hidden" id="preview-fade"></div>
         </div>
         <div class="preview-lock hidden" id="preview-lock">
@@ -620,6 +622,3 @@
   <script src="script.js"></script>
 </body>
 </html>
-
-
-
