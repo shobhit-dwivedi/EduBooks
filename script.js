@@ -168,6 +168,14 @@ function showPage(page) {
   }
   if (page === 'dashboard') loadDashboard();
   if (page === 'admin')     loadAdmin();
+  updateBottomNav(page);
+}
+
+function updateBottomNav(page) {
+  const map = { home: 'bnav-home', dashboard: 'bnav-library', book: 'bnav-home' };
+  ['bnav-home', 'bnav-library', 'bnav-cart'].forEach(id => el(id)?.classList.remove('active'));
+  const activeId = map[page];
+  if (activeId) el(activeId)?.classList.add('active');
 }
 
 /* ── MOBILE MENU ─────────────────────────────────────────────── */
@@ -236,7 +244,7 @@ async function submitLogin() {
   try {
     const res  = await gas('loginBuyer', { username, password });
     const user = res.user;
-    if (!user?.email) { showToast('Login failed.', 'error'); return; }
+    if (!user?.username) { showToast('Login failed.', 'error'); return; }
     localStorage.setItem('eb_session', JSON.stringify({ user }));
     setCurrentUser(user, null);
     closeModal('auth-modal');
@@ -502,25 +510,75 @@ function openBookDetail(bookId) {
 }
 
 /* ── READER ──────────────────────────────────────────────────── */
+
+/* Convert any Google Drive share/view link to an embeddable /preview URL */
+function driveEmbedUrl(url) {
+  if (!url) return '';
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+  return url;
+}
+
 function openReader(bookId) {
   const book = allBooks.find(b => b.id === bookId);
   if (!book || !book.pdf) { showToast('PDF not available.', 'error'); return; }
   if (!purchases.includes(bookId) && (!currentUser || currentUser.role !== 'admin')) {
     showToast('Purchase this book to read it.', 'error'); return;
   }
-  el('preview-title').textContent  = book.title;
-  el('preview-iframe').src         = book.pdf;
+  const wrap = el('preview-wrap');
+  wrap.classList.remove('mode-preview'); wrap.classList.add('mode-full');
+  el('preview-fade')?.classList.add('hidden');
+  el('preview-lock')?.classList.add('hidden');
+  el('preview-badge')?.classList.add('hidden');
+  el('preview-title').textContent = book.title;
+  el('preview-iframe').src        = driveEmbedUrl(book.pdf);
   el('preview-modal').classList.remove('hidden');
-  document.body.style.overflow     = 'hidden';
+  document.body.style.overflow    = 'hidden';
 }
 
 function openPreviewReader(bookId) {
   const book = allBooks.find(b => b.id === bookId);
-  if (!book || !book.pdf) return;
-  // Append page range for preview (first 5 pages)
-  const previewUrl = book.pdf.includes('?') ? book.pdf + '#page=1' : book.pdf + '#page=1';
-  el('preview-title').textContent = book.title + ' — Preview';
-  el('preview-iframe').src        = previewUrl;
+  if (!book || !book.pdf) { showToast('No preview available for this book.', 'error'); return; }
+
+  const wrap = el('preview-wrap');
+  wrap.classList.remove('mode-full'); wrap.classList.add('mode-preview');
+  el('preview-fade')?.classList.remove('hidden');
+  el('preview-badge')?.classList.remove('hidden');
+
+  const lockEl     = el('preview-lock');
+  const actionsEl  = el('preview-lock-actions');
+  lockEl?.classList.remove('hidden');
+
+  const alreadyOwned = purchases.includes(bookId);
+  if (actionsEl) {
+    if (alreadyOwned) {
+      actionsEl.innerHTML = '';
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary';
+      btn.textContent = 'Read Full Book';
+      btn.onclick = () => { closeModal('preview-modal'); openReader(bookId); };
+      actionsEl.appendChild(btn);
+    } else {
+      actionsEl.innerHTML = '';
+      const inCart = cart.some(c => c.id === bookId);
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary';
+      btn.textContent = inCart ? 'View Cart' : 'Add to Cart';
+      btn.onclick = () => {
+        if (!cart.some(c => c.id === bookId)) {
+          addToCart(bookId);
+          btn.textContent = 'View Cart';
+          btn.onclick = () => { closeModal('preview-modal'); toggleCart(); };
+        } else {
+          closeModal('preview-modal'); toggleCart();
+        }
+      };
+      actionsEl.appendChild(btn);
+    }
+  }
+
+  el('preview-title').textContent = book.title;
+  el('preview-iframe').src        = driveEmbedUrl(book.pdf);
   el('preview-modal').classList.remove('hidden');
   document.body.style.overflow    = 'hidden';
 }
