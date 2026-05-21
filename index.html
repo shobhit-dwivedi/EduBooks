@@ -19,43 +19,35 @@
   ══════════════════════════════════════════ -->
   <nav class="navbar" id="navbar">
     <div class="navbar-inner">
-
-      <!-- Logo -->
       <a href="#" class="brand" onclick="showPage('home'); return false;">
-        <svg class="brand-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg class="brand-logo" viewBox="0 0 32 32" fill="none">
           <rect width="32" height="32" rx="8" fill="var(--primary)"/>
           <path d="M8 10h16M8 16h16M8 22h10" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
         </svg>
         <span class="brand-name">EduBooks</span>
       </a>
 
-      <!-- Search (desktop) -->
       <div class="nav-search" id="nav-search-box">
         <svg class="nav-search-icon" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.6"/><path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         <input type="search" id="nav-search-input" placeholder="Search books, subjects, topics…" oninput="handleSearch(event)" autocomplete="off" />
       </div>
 
-      <!-- Right controls -->
       <div class="nav-right">
-        <!-- Theme toggle -->
         <button class="nav-icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle theme" aria-label="Toggle theme">
           <svg id="icon-moon" viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 0111.21 3 7 7 0 1012 21a9 9 0 009-8.21z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <svg id="icon-sun" class="hidden" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.7"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         </button>
 
-        <!-- Cart -->
         <button class="nav-icon-btn cart-btn" onclick="toggleCart()" title="Cart" aria-label="Cart">
           <svg viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M16 10a4 4 0 01-8 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span class="badge hidden" id="cart-badge">0</span>
         </button>
 
-        <!-- Auth: logged out -->
         <div id="nav-logged-out" class="nav-auth">
           <button class="btn btn-ghost btn-sm" onclick="openAuth('login')">Login</button>
           <button class="btn btn-primary btn-sm" onclick="openAuth('register')">Register</button>
         </div>
 
-        <!-- Auth: logged in -->
         <div id="nav-logged-in" class="hidden nav-user">
           <button class="nav-lib-btn" onclick="showPage('dashboard')" title="My Library">
             <svg viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -90,14 +82,12 @@
           </div>
         </div>
 
-        <!-- Hamburger -->
         <button class="hamburger" id="hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
           <span></span><span></span><span></span>
         </button>
       </div>
     </div>
 
-    <!-- Mobile drawer -->
     <div class="mobile-drawer hidden" id="mobile-drawer">
       <div class="mob-search">
         <svg viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -119,7 +109,6 @@
     </div>
   </nav>
 
-  <!-- Setup banner -->
   <div id="setup-banner" class="setup-banner hidden">
     GAS not configured. Open <code>script.js</code> and set <code>GAS_URL</code> and <code>UPI_ID</code>.
   </div>
@@ -140,6 +129,19 @@
             <input type="search" id="hero-search-input" placeholder="Search by title, subject, topic…" oninput="handleSearch(event)" autocomplete="off" />
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- Study Packages -->
+    <section class="packages-section hidden" id="packages-section">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Study Packages</h2>
+            <p class="text-muted fs-sm">Complete bundles at discounted prices</p>
+          </div>
+        </div>
+        <div class="packages-row" id="packages-row"></div>
       </div>
     </section>
 
@@ -175,12 +177,9 @@
     <section class="books-section">
       <div class="container">
         <div id="books-loading" class="skeleton-grid">
-          <div class="skeleton-card"></div>
-          <div class="skeleton-card"></div>
-          <div class="skeleton-card"></div>
-          <div class="skeleton-card"></div>
-          <div class="skeleton-card"></div>
-          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div><div class="skeleton-card"></div>
+          <div class="skeleton-card"></div><div class="skeleton-card"></div>
+          <div class="skeleton-card"></div><div class="skeleton-card"></div>
         </div>
         <div id="books-grid" class="books-grid hidden"></div>
         <div id="books-empty" class="empty-state hidden">
@@ -226,6 +225,7 @@
       <div class="tab-bar">
         <button class="tab active" onclick="switchDashTab('library', this)">My Library</button>
         <button class="tab" onclick="switchDashTab('orders', this)">Orders</button>
+        <button class="tab" onclick="switchDashTab('support', this)">Support</button>
         <button class="tab" onclick="switchDashTab('profile', this)">Profile</button>
       </div>
 
@@ -245,6 +245,51 @@
           <svg viewBox="0 0 64 64" fill="none"><path d="M16 8h32l8 16v32H8V24L16 8z" stroke="var(--border)" stroke-width="2" stroke-linejoin="round"/><path d="M8 24h48M24 24V8M40 24V8" stroke="var(--border)" stroke-width="2" stroke-linecap="round"/></svg>
           <h3>No orders yet</h3>
           <p>Your purchases will appear here once you've bought a book.</p>
+        </div>
+      </div>
+
+      <!-- Support Tab -->
+      <div id="dash-support" class="tab-panel hidden">
+        <div class="support-layout">
+          <!-- Submit form -->
+          <div class="form-card">
+            <h3>Contact Support</h3>
+            <p class="text-muted fs-sm mb-md">Having an issue? Tell us what happened and we'll help you.</p>
+            <div class="form-group">
+              <label>Issue Category</label>
+              <select id="ticket-category">
+                <option value="Payment Issue">Payment Issue</option>
+                <option value="Book Access">Book Access Problem</option>
+                <option value="Wrong Content">Wrong/Missing Content</option>
+                <option value="Account Issue">Account Issue</option>
+                <option value="General">General Inquiry</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Describe your issue *</label>
+              <textarea id="ticket-message" rows="4" placeholder="Describe your problem in detail…"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Attach Screenshot (optional)</label>
+              <div class="upload-zone" id="ticket-upload-zone" onclick="document.getElementById('ticket-screenshot-input').click()">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span id="ticket-upload-label">Attach a screenshot (optional)</span>
+              </div>
+              <input type="file" id="ticket-screenshot-input" accept="image/*" onchange="handleTicketScreenshot(event)" style="display:none" />
+            </div>
+            <button class="btn btn-primary w-full" id="submit-ticket-btn" onclick="submitTicket()">Send Request</button>
+          </div>
+
+          <!-- Ticket history -->
+          <div>
+            <h3 class="mb-md">My Tickets</h3>
+            <div id="my-tickets-list"></div>
+            <div id="my-tickets-empty" class="empty-state hidden" style="padding:24px 0">
+              <h3 style="font-size:1rem">No tickets yet</h3>
+              <p>Submit a request above and we'll get back to you.</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -271,16 +316,19 @@
       <div class="analytics-grid" id="analytics-grid">
         <div class="a-card"><div class="a-label">Total Users</div><div class="a-val" id="a-users">—</div></div>
         <div class="a-card"><div class="a-label">Total Books</div><div class="a-val" id="a-books">—</div></div>
+        <div class="a-card"><div class="a-label">Packages</div><div class="a-val" id="a-packages">—</div></div>
         <div class="a-card"><div class="a-label">Total Sales</div><div class="a-val" id="a-sales">—</div></div>
         <div class="a-card accent"><div class="a-label">Revenue</div><div class="a-val" id="a-revenue">—</div></div>
         <div class="a-card warn"><div class="a-label">Pending</div><div class="a-val" id="a-pending">—</div></div>
       </div>
 
-      <div class="tab-bar">
+      <div class="tab-bar" style="flex-wrap:wrap">
         <button class="tab active" onclick="switchAdminTab('orders', this)">Orders</button>
         <button class="tab" onclick="switchAdminTab('books', this)">Books</button>
         <button class="tab" onclick="switchAdminTab('add-book', this)">Add Book</button>
+        <button class="tab" onclick="switchAdminTab('packages', this)">Packages</button>
         <button class="tab" onclick="switchAdminTab('coupons', this)">Coupons</button>
+        <button class="tab" onclick="switchAdminTab('support', this)">Support</button>
         <button class="tab" onclick="switchAdminTab('users', this)">Users</button>
       </div>
 
@@ -288,9 +336,7 @@
       <div id="admin-orders" class="tab-panel active">
         <div id="admin-orders-loading" class="text-center text-muted p-lg">Loading…</div>
         <div id="admin-orders-list" class="hidden"></div>
-        <div id="admin-orders-empty" class="empty-state hidden">
-          <h3>No payment requests</h3>
-        </div>
+        <div id="admin-orders-empty" class="empty-state hidden"><h3>No payment requests</h3></div>
       </div>
 
       <!-- Books list -->
@@ -321,6 +367,12 @@
               </select>
             </div>
             <div class="form-group">
+              <label>Package / Bundle</label>
+              <select id="b-package">
+                <option value="">None (standalone book)</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label>Price (₹) *</label>
               <input type="number" id="b-price" placeholder="199" min="1" />
             </div>
@@ -328,25 +380,73 @@
               <label>Initial Rating (1–5)</label>
               <input type="number" id="b-rating" placeholder="0" min="0" max="5" step="0.1" />
             </div>
-            <div class="form-group">
+            <div class="form-group span-2">
               <label>Keywords (comma-separated)</label>
               <input type="text" id="b-keywords" placeholder="math, algebra, class 10" />
             </div>
             <div class="form-group span-2">
               <label>Description</label>
-              <textarea id="b-desc" rows="3" placeholder="Brief description of this book…"></textarea>
+              <textarea id="b-desc" rows="3" placeholder="Brief description…"></textarea>
             </div>
             <div class="form-group span-2">
-              <label>Thumbnail URL</label>
-              <input type="url" id="b-thumb" placeholder="https://…" />
+              <label>Thumbnail URL (Google Drive or direct image link)</label>
+              <input type="url" id="b-thumb" placeholder="https://drive.google.com/…" />
             </div>
             <div class="form-group span-2">
-              <label>PDF URL *</label>
-              <input type="url" id="b-pdf" placeholder="https://…" />
+              <label>PDF URL * (Google Drive link)</label>
+              <input type="url" id="b-pdf" placeholder="https://drive.google.com/…" />
             </div>
           </div>
-          <button class="btn btn-primary" id="add-book-btn" onclick="submitAddBook()">Add Book</button>
+
+          <div class="form-section-label">
+            <svg viewBox="0 0 20 20" fill="none" style="width:16px;height:16px"><rect x="2" y="4" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.4"/><circle cx="7" cy="9" r="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 15l4-4 3 3 3-3 6 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Preview Images (up to 5 Google Drive image links)
+          </div>
+          <div class="form-grid preview-imgs-grid">
+            <div class="form-group"><input type="url" id="b-prev1" placeholder="Preview image 1 URL" /></div>
+            <div class="form-group"><input type="url" id="b-prev2" placeholder="Preview image 2 URL" /></div>
+            <div class="form-group"><input type="url" id="b-prev3" placeholder="Preview image 3 URL" /></div>
+            <div class="form-group"><input type="url" id="b-prev4" placeholder="Preview image 4 URL" /></div>
+            <div class="form-group"><input type="url" id="b-prev5" placeholder="Preview image 5 URL" /></div>
+          </div>
+          <p class="text-muted fs-xs mt-xs">Upload screenshots of first few pages to Google Drive, set sharing to "Anyone with link", then paste those links here.</p>
+
+          <button class="btn btn-primary mt-md" id="add-book-btn" onclick="submitAddBook()">Add Book</button>
         </div>
+      </div>
+
+      <!-- Packages -->
+      <div id="admin-packages" class="tab-panel hidden">
+        <div class="form-card" style="margin-bottom:24px">
+          <h3>Create New Package / Bundle</h3>
+          <p class="text-muted fs-sm mb-md">After creating a package, assign books to it in the "Add Book" tab.</p>
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label>Package Name *</label>
+              <input type="text" id="pkg-name" placeholder="e.g. PW Modules, Allen DLP, NCERT Solutions" />
+            </div>
+            <div class="form-group span-2">
+              <label>Description</label>
+              <input type="text" id="pkg-desc" placeholder="Short description of this bundle" />
+            </div>
+            <div class="form-group span-2">
+              <label>Cover Image URL (optional)</label>
+              <input type="url" id="pkg-cover" placeholder="https://…" />
+            </div>
+            <div class="form-group">
+              <label>Individual Total Price (₹)</label>
+              <input type="number" id="pkg-price" placeholder="999" min="0" />
+            </div>
+            <div class="form-group">
+              <label>Bundle / Discounted Price (₹)</label>
+              <input type="number" id="pkg-disc-price" placeholder="699" min="0" />
+            </div>
+          </div>
+          <button class="btn btn-primary mt-sm" id="add-pkg-btn" onclick="submitAddPackage()">Create Package</button>
+        </div>
+
+        <div id="admin-packages-loading" class="text-center text-muted p-lg">Loading…</div>
+        <div id="admin-packages-list" class="hidden"></div>
       </div>
 
       <!-- Coupons -->
@@ -370,13 +470,35 @@
               <input type="number" id="c-value" placeholder="20" min="1" />
             </div>
             <div class="form-group">
-              <label>Expiry *</label>
+              <label>Expiry Date *</label>
               <input type="date" id="c-expiry" />
+            </div>
+            <div class="form-group">
+              <label>Max Uses (0 = unlimited)</label>
+              <input type="number" id="c-max-uses" placeholder="0" min="0" />
+            </div>
+            <div class="form-group">
+              <label>Scope</label>
+              <select id="c-scope" onchange="onCouponScopeChange()">
+                <option value="all">Entire Website</option>
+                <option value="book">Specific Book</option>
+                <option value="package">Specific Package</option>
+              </select>
+            </div>
+            <div class="form-group span-2 hidden" id="c-scope-id-row">
+              <label id="c-scope-id-label">Book / Package ID</label>
+              <input type="text" id="c-scope-id" placeholder="Paste the Book ID or Package ID here" />
+              <p class="text-muted fs-xs mt-xs">Find the ID in the Books or Packages table above.</p>
             </div>
           </div>
           <button class="btn btn-primary" onclick="submitAddCoupon()">Create Coupon</button>
         </div>
         <div id="coupons-list"></div>
+      </div>
+
+      <!-- Support Tickets -->
+      <div id="admin-support" class="tab-panel hidden">
+        <div id="admin-tickets-list"></div>
       </div>
 
       <!-- Users -->
@@ -424,7 +546,6 @@
         <button class="modal-tab" id="tab-admin" onclick="switchAuthTab('admin')">Admin</button>
       </div>
 
-      <!-- Login -->
       <div id="form-login">
         <div class="modal-body">
           <h2 class="modal-title">Welcome back</h2>
@@ -444,7 +565,6 @@
         </div>
       </div>
 
-      <!-- Register -->
       <div id="form-register" class="hidden">
         <div class="modal-body">
           <h2 class="modal-title">Create account</h2>
@@ -474,7 +594,6 @@
         </div>
       </div>
 
-      <!-- Admin -->
       <div id="form-admin" class="hidden">
         <div class="modal-body">
           <h2 class="modal-title">Admin Login</h2>
@@ -507,30 +626,20 @@
     <div class="modal modal-lg">
       <div class="modal-body">
         <h2 class="modal-title">Checkout</h2>
-
-        <!-- Order summary -->
         <div class="checkout-summary" id="checkout-summary"></div>
-
-        <!-- Coupon -->
         <div class="coupon-row">
           <input type="text" id="coupon-input" placeholder="Coupon code" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" />
           <button class="btn btn-ghost btn-sm" onclick="applyCoupon()">Apply</button>
         </div>
         <div id="coupon-status" class="coupon-status hidden"></div>
-
-        <!-- Price breakdown -->
         <div class="price-breakdown" id="price-breakdown"></div>
-
-        <!-- Payment section -->
         <div class="pay-section">
           <p class="fs-sm fw-600 mb-sm">Pay via UPI</p>
           <div class="pay-section-inner">
-            <!-- QR Code -->
             <div class="qr-wrap">
               <img id="qr-img" src="" alt="UPI QR Code" title="Click to enlarge" onclick="enlargeQR()" />
               <p class="text-muted fs-xs mt-xs text-center">Tap to enlarge</p>
             </div>
-            <!-- UPI ID + copy -->
             <div class="upi-details">
               <div class="upi-box" id="upi-box">
                 <span id="upi-id-text"></span>
@@ -540,7 +649,6 @@
             </div>
           </div>
         </div>
-
         <div class="form-group mt-md">
           <label>Payment Screenshot *</label>
           <div class="upload-zone" id="upload-zone" onclick="document.getElementById('screenshot-input').click()">
@@ -549,7 +657,6 @@
           </div>
           <input type="file" id="screenshot-input" accept="image/*" onchange="handleScreenshot(event)" style="display:none" />
         </div>
-
         <button class="btn btn-primary w-full mt-md" id="submit-payment-btn" onclick="submitPayment()">Submit Payment Request</button>
       </div>
       <button class="modal-close" onclick="closeModal('checkout-modal')" aria-label="Close">
@@ -559,39 +666,49 @@
   </div>
 
   <!-- ══════════════════════════════════════════
-       PREVIEW MODAL (Book reader preview)
+       IMAGE GALLERY MODAL
   ══════════════════════════════════════════ -->
-  <div class="modal-overlay hidden" id="preview-modal" onclick="closeModal('preview-modal', event)">
-    <div class="modal modal-preview">
+  <div class="modal-overlay hidden" id="gallery-modal" onclick="closeModal('gallery-modal', event)">
+    <div class="gallery-container" onclick="event.stopPropagation()">
+      <div class="gallery-toolbar">
+        <span class="gallery-counter" id="gallery-counter">1 / 1</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('gallery-modal')">✕ Close</button>
+      </div>
+      <div class="gallery-main">
+        <button class="gallery-nav gallery-prev" id="gallery-prev" onclick="galleryPrev()" aria-label="Previous">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="gallery-img-wrap">
+          <img id="gallery-img" src="" alt="Preview" />
+        </div>
+        <button class="gallery-nav gallery-next" id="gallery-next" onclick="galleryNext()" aria-label="Next">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="gallery-dots" id="gallery-dots"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       FULL READER MODAL (PDF)
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay hidden" id="reader-modal" onclick="closeModal('reader-modal', event)">
+    <div class="modal modal-reader">
       <div class="modal-body p-0">
         <div class="preview-toolbar">
-          <span id="preview-title" class="fw-600 fs-sm"></span>
-          <span id="preview-badge" class="cat-badge hidden" style="color:#fff;background:var(--primary)">Preview — First 4 Pages</span>
-          <button class="btn btn-ghost btn-sm" onclick="closeModal('preview-modal')">Close</button>
+          <span id="reader-title" class="fw-600 fs-sm"></span>
+          <button class="btn btn-ghost btn-sm" onclick="closeModal('reader-modal')">Close</button>
         </div>
-        <div id="preview-wrap" class="preview-wrap">
-          <iframe id="preview-iframe" src="" title="Book Preview" allowfullscreen></iframe>
-          <!-- Transparent blocker: intercepts ALL touch/mouse/scroll events in preview mode -->
-          <div id="preview-blocker" class="preview-blocker hidden"></div>
-          <div class="preview-fade hidden" id="preview-fade"></div>
-        </div>
-        <div class="preview-lock hidden" id="preview-lock">
-          <div class="preview-lock-icon">
-            <svg viewBox="0 0 24 24" fill="none" width="36" height="36"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 11V7a4 4 0 018 0v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-          </div>
-          <p class="fw-600 fs-base mt-sm">Preview ends here</p>
-          <p class="text-muted fs-sm mt-xs mb-md">Buy this book to read all pages</p>
-          <div id="preview-lock-actions"></div>
-        </div>
+        <iframe id="reader-iframe" src="" title="Book Reader" allowfullscreen style="width:100%;height:calc(90vh - 56px);border:none;display:block"></iframe>
       </div>
-      <button class="modal-close" onclick="closeModal('preview-modal')" aria-label="Close">
+      <button class="modal-close" onclick="closeModal('reader-modal')" aria-label="Close">
         <svg viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       </button>
     </div>
   </div>
 
   <!-- QR Enlarge Overlay -->
-  <div class="qr-overlay hidden" id="qr-overlay" onclick="this.classList.add('hidden')">
+  <div class="qr-overlay hidden" id="qr-overlay" onclick="this.classList.add('hidden'); document.body.style.overflow=''">
     <div class="qr-overlay-box">
       <img id="qr-overlay-img" src="" alt="UPI QR Code" />
       <p class="text-muted fs-sm mt-sm text-center">Tap anywhere to close</p>
