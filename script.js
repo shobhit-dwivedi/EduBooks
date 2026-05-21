@@ -1,21 +1,22 @@
 /* ═══════════════════════════════════════════════════════════════
-   EduBooks — script.js (v2)
+   EduBooks — script.js (v3)
 
    SETUP:
    1. GAS_URL  → paste your deployed Google Apps Script Web App URL
    2. UPI_ID   → paste your UPI payment ID  (e.g. yourname@upi)
 ═══════════════════════════════════════════════════════════════ */
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyCoigDwTyCnkqURmOphzQ9BYUKYwIalWDkDHodx_TqLGXi1VeEpis5Xa_qD8tVFIQO/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwF9oL40L4sIxhwDhpdBJgGO5VxVrr9SdB1eHwFtLqSnT5TFIHzmEI9FujxU8s00QbK/exec';
 const UPI_ID  = 'ganeshkumardwivedi90@oksbi';
 
 /* ── STATE ─────────────────────────────────────────────────────── */
 let currentUser   = null;
 let adminCreds    = null;
 let allBooks      = [];
+let allPackages   = [];
 let filteredBooks = [];
-let purchases     = [];       // bookIds the current user owns
-let cart          = [];       // array of book objects
+let purchases     = [];
+let cart          = [];
 let currentCategory = 'all';
 let currentSort     = 'newest';
 let searchQuery     = '';
@@ -26,6 +27,35 @@ let checkoutFinalTotal  = 0;
 let checkoutDiscount    = 0;
 let checkoutCouponCode  = '';
 let checkoutScreenshot  = null;
+let checkoutPackageId   = '';
+
+// Gallery state
+let galleryImages = [];
+let galleryIdx    = 0;
+
+// Support ticket screenshot
+let ticketScreenshot = null;
+
+/* ── CACHE ─────────────────────────────────────────────────────── */
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCached(key) {
+  try {
+    const raw = sessionStorage.getItem('eb_' + key);
+    if (!raw) return null;
+    const item = JSON.parse(raw);
+    if (Date.now() - item.ts > CACHE_TTL) { sessionStorage.removeItem('eb_' + key); return null; }
+    return item.data;
+  } catch { return null; }
+}
+
+function setCached(key, data) {
+  try { sessionStorage.setItem('eb_' + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+}
+
+function clearCache(key) {
+  try { sessionStorage.removeItem('eb_' + (key || 'books')); } catch {}
+}
 
 /* ── INIT ─────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -42,9 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   updateCartBadge();
   restoreSession();
-  loadBooks();
+  loadBooksAndPackages();
 
-  // Close dropdowns on outside click
   document.addEventListener('click', e => {
     const drop = el('user-dropdown');
     const trig = el('avatar-trigger');
@@ -53,9 +82,26 @@ document.addEventListener('DOMContentLoaded', () => {
       drop.classList.add('hidden');
     }
   });
+
+  // Gallery keyboard nav
+  document.addEventListener('keydown', e => {
+    if (!el('gallery-modal') || el('gallery-modal').classList.contains('hidden')) return;
+    if (e.key === 'ArrowRight') galleryNext();
+    if (e.key === 'ArrowLeft')  galleryPrev();
+    if (e.key === 'Escape')     closeModal('gallery-modal');
+  });
+
+  // Gallery touch swipe
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!el('gallery-modal') || el('gallery-modal').classList.contains('hidden')) return;
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) { diff > 0 ? galleryNext() : galleryPrev(); }
+  }, { passive: true });
 });
 
-/* ── GAS HELPER ───────────────────────────────────────────────── */
+/* ── GAS HELPER ─────────────────────────────────────────────────── */
 async function gas(action, body = {}) {
   if (!GAS_URL || GAS_URL === 'YOUR_GAS_SCRIPT_URL_HERE')
     throw new Error('GAS_URL not set. Open script.js and paste your deployed Apps Script URL.');
@@ -79,7 +125,7 @@ async function gas(action, body = {}) {
   return json;
 }
 
-/* ── THEME ────────────────────────────────────────────────────── */
+/* ── THEME ─────────────────────────────────────────────────────── */
 function toggleTheme() {
   const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   applyTheme(t);
@@ -151,7 +197,7 @@ async function signOut() {
   showToast('Signed out successfully.', 'info');
 }
 
-/* ── PAGES ───────────────────────────────────────────────────── */
+/* ── PAGES ─────────────────────────────────────────────────────── */
 function showPage(page) {
   if (page === 'dashboard' && !currentUser) { openAuth('login'); return; }
   if (page === 'admin' && (!currentUser || currentUser.role !== 'admin')) {
@@ -191,13 +237,9 @@ function closeMobileMenu() {
   el('hamburger')?.classList.remove('open');
 }
 
-/* ── USER MENU ───────────────────────────────────────────────── */
-function toggleUserMenu() {
-  el('user-dropdown')?.classList.toggle('hidden');
-}
-function closeUserMenu() {
-  el('user-dropdown')?.classList.add('hidden');
-}
+/* ── USER MENU ─────────────────────────────────────────────────── */
+function toggleUserMenu()  { el('user-dropdown')?.classList.toggle('hidden'); }
+function closeUserMenu()   { el('user-dropdown')?.classList.add('hidden'); }
 
 /* ── AUTH ─────────────────────────────────────────────────────── */
 function openAuth(tab) {
@@ -212,7 +254,7 @@ function switchAuthTab(tab) {
 }
 
 async function submitRegister() {
-  const btn  = el('register-btn');
+  const btn      = el('register-btn');
   const name     = val('reg-name');
   const username = val('reg-username');
   const email    = val('reg-email');
@@ -221,9 +263,10 @@ async function submitRegister() {
   if (password.length < 6) { showToast('Password must be at least 6 characters.', 'error'); return; }
   setBtnLoading(btn, true, 'Creating…');
   try {
-    const res  = await gas('registerBuyer', { name, username, email, password });
-    const user = res.user;
-    if (!user?.email) { showToast('Registration failed.', 'error'); return; }
+    await gas('registerBuyer', { name, username, email, password });
+    const loginRes = await gas('loginBuyer', { username, password });
+    const user = loginRes.user;
+    if (!user?.email) { showToast('Account created! Please log in.', 'success'); switchAuthTab('login'); return; }
     localStorage.setItem('eb_session', JSON.stringify({ user }));
     setCurrentUser(user, null);
     closeModal('auth-modal');
@@ -285,14 +328,66 @@ function togglePw(inputId, btn) {
   btn.textContent = isHidden ? 'Hide' : 'Show';
 }
 
-/* ── BOOKS ───────────────────────────────────────────────────── */
-async function loadBooks() {
-  try {
-    const res = await gas('getBooks');
-    allBooks = res.books || [];
+/* ── BOOKS + CACHE ─────────────────────────────────────────────── */
+async function loadBooksAndPackages() {
+  const cachedBooks    = getCached('books');
+  const cachedPackages = getCached('packages');
+
+  if (cachedBooks) {
+    allBooks = cachedBooks;
     if (currentUser && currentUser.role !== 'admin') {
       purchases = await loadPurchases();
     }
+    applyFiltersAndSort();
+  }
+
+  if (cachedPackages) {
+    allPackages = cachedPackages;
+    renderPackagesSection();
+  }
+
+  if (!cachedBooks || !cachedPackages) {
+    await fetchBooksAndPackages();
+  }
+}
+
+async function fetchBooksAndPackages(force = false) {
+  if (force) { clearCache('books'); clearCache('packages'); }
+  try {
+    const [booksRes, pkgRes] = await Promise.all([
+      gas('getBooks'),
+      gas('getPackages')
+    ]);
+    allBooks    = booksRes.books    || [];
+    allPackages = pkgRes.packages   || [];
+    setCached('books',    allBooks);
+    setCached('packages', allPackages);
+
+    if (currentUser && currentUser.role !== 'admin') {
+      purchases = await loadPurchases();
+    }
+    applyFiltersAndSort();
+    renderPackagesSection();
+  } catch (err) {
+    el('books-loading')?.classList.add('hidden');
+    showToast('Failed to load books: ' + err.message, 'error');
+  }
+}
+
+async function loadBooks(force = false) {
+  if (force) clearCache('books');
+  const cached = getCached('books');
+  if (cached && !force) {
+    allBooks = cached;
+    if (currentUser && currentUser.role !== 'admin') purchases = await loadPurchases();
+    applyFiltersAndSort();
+    return;
+  }
+  try {
+    const res = await gas('getBooks');
+    allBooks  = res.books || [];
+    setCached('books', allBooks);
+    if (currentUser && currentUser.role !== 'admin') purchases = await loadPurchases();
     applyFiltersAndSort();
   } catch (err) {
     el('books-loading')?.classList.add('hidden');
@@ -308,9 +403,92 @@ async function loadPurchases() {
   } catch { return []; }
 }
 
+/* ── PACKAGES SECTION ─────────────────────────────────────────── */
+function renderPackagesSection() {
+  const section = el('packages-section');
+  const row     = el('packages-row');
+  if (!section || !row) return;
+
+  if (!allPackages.length) {
+    section.classList.add('hidden');
+    return;
+  }
+
+  section.classList.remove('hidden');
+  row.innerHTML = allPackages.map(pkg => packageCard(pkg)).join('');
+}
+
+function packageCard(pkg) {
+  const price     = parseFloat(pkg.price)           || 0;
+  const discPrice = parseFloat(pkg.discountedPrice)  || 0;
+  const bookCount = parseInt(pkg.bookCount)          || 0;
+  const savings   = price > 0 && discPrice > 0 ? Math.round(((price - discPrice) / price) * 100) : 0;
+
+  const cover = pkg.coverImage
+    ? `<img src="${esc(pkg.coverImage)}" alt="${esc(pkg.name)}" class="pkg-cover" loading="lazy" />`
+    : `<div class="pkg-cover-placeholder"><svg viewBox="0 0 48 48" fill="none"><rect x="4" y="4" width="40" height="40" rx="6" fill="var(--bg3)"/><path d="M14 20h20M14 28h16" stroke="var(--border)" stroke-width="2" stroke-linecap="round"/></svg></div>`;
+
+  return `
+    <div class="pkg-card">
+      ${cover}
+      ${savings > 0 ? `<span class="pkg-savings-badge">${savings}% OFF</span>` : ''}
+      <div class="pkg-body">
+        <h3 class="pkg-name">${esc(pkg.name)}</h3>
+        ${pkg.description ? `<p class="pkg-desc">${esc(pkg.description)}</p>` : ''}
+        <div class="pkg-meta">
+          <span class="pkg-book-count">${bookCount} book${bookCount !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="pkg-price-row">
+          ${discPrice > 0 ? `
+            <span class="pkg-discounted-price">₹${discPrice.toFixed(0)}</span>
+            ${price > 0 ? `<span class="pkg-original-price">₹${price.toFixed(0)}</span>` : ''}
+          ` : price > 0 ? `<span class="pkg-discounted-price">₹${price.toFixed(0)}</span>` : ''}
+        </div>
+        <div class="pkg-actions">
+          <button class="btn btn-ghost btn-sm flex-1" onclick="filterByPackage('${pkg.id}', '${esc(pkg.name)}')">Browse Books</button>
+          ${bookCount > 0 ? `<button class="btn btn-primary btn-sm flex-1" onclick="buyBundle('${pkg.id}')">Buy Bundle</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function filterByPackage(pkgId, pkgName) {
+  currentCategory  = '__pkg__' + pkgId;
+  filteredBooks    = allBooks.filter(b => String(b.packageId) === String(pkgId));
+  searchQuery      = '';
+  currentSort      = 'newest';
+
+  document.querySelectorAll('.filter-chips .chip').forEach(c => c.classList.remove('active'));
+
+  renderBooks();
+  showPage('home');
+  window.scrollTo({ top: 400, behavior: 'smooth' });
+  showToast(`Showing books in "${pkgName}"`, 'info');
+}
+
+async function buyBundle(pkgId) {
+  if (!currentUser) { openAuth('login'); return; }
+  const pkg      = allPackages.find(p => p.id === pkgId);
+  if (!pkg) return;
+  const pkgBooks = allBooks.filter(b => String(b.packageId) === String(pkgId));
+  if (!pkgBooks.length) { showToast('No books in this bundle yet.', 'info'); return; }
+
+  const unownedBooks = pkgBooks.filter(b => !purchases.includes(b.id));
+  if (!unownedBooks.length) { showToast('You already own all books in this bundle!', 'info'); return; }
+
+  checkoutPackageId = pkgId;
+  const discPrice   = parseFloat(pkg.discountedPrice) || parseFloat(pkg.price) || 0;
+
+  if (discPrice > 0) {
+    openCheckout(unownedBooks, discPrice);
+  } else {
+    openCheckout(unownedBooks);
+  }
+}
+
+/* ── SEARCH / FILTER / SORT ─────────────────────────────────── */
 function handleSearch(e) {
   searchQuery = (e.target.value || '').trim().toLowerCase();
-  // sync both search inputs
   const heroInput = el('hero-search-input');
   const navInput  = el('nav-search-input');
   if (e.target !== heroInput && heroInput) heroInput.value = e.target.value;
@@ -333,12 +511,13 @@ function handleSort(val) {
 function applyFiltersAndSort() {
   let books = [...allBooks];
 
-  // Category filter
-  if (currentCategory !== 'all') {
+  if (currentCategory.startsWith('__pkg__')) {
+    const pkgId = currentCategory.replace('__pkg__', '');
+    books = books.filter(b => String(b.packageId) === pkgId);
+  } else if (currentCategory !== 'all') {
     books = books.filter(b => (b.category || 'Other') === currentCategory);
   }
 
-  // Search filter
   if (searchQuery) {
     books = books.filter(b => {
       const title    = (b.title       || '').toLowerCase();
@@ -350,7 +529,6 @@ function applyFiltersAndSort() {
     });
   }
 
-  // Sort
   switch (currentSort) {
     case 'popular':
       books.sort((a, b) => (parseFloat(b.salesCount) || 0) - (parseFloat(a.salesCount) || 0));
@@ -390,7 +568,6 @@ function renderBooks() {
     return;
   }
   empty?.classList.add('hidden');
-
   grid.innerHTML = filteredBooks.map(book => bookCard(book)).join('');
 }
 
@@ -401,6 +578,7 @@ function bookCard(book) {
   const rating  = parseFloat(book.rating) || 0;
   const stars   = renderStars(rating);
   const count   = parseInt(book.ratingsCount) || 0;
+  const pkg     = book.packageId ? allPackages.find(p => p.id === book.packageId) : null;
 
   const thumb = book.thumbnail
     ? `<img src="${esc(book.thumbnail)}" alt="${esc(book.title)}" loading="lazy" onerror="this.src='';this.style.display='none';this.parentElement.classList.add('no-thumb')" />`
@@ -412,6 +590,7 @@ function bookCard(book) {
     <div class="book-card" onclick="openBookDetail('${book.id}')">
       <div class="book-thumb">${thumb}${catBadge}</div>
       <div class="book-body">
+        ${pkg ? `<div class="book-pkg-badge">${esc(pkg.name)}</div>` : ''}
         <h3 class="book-title">${esc(book.title)}</h3>
         <div class="book-meta">
           <div class="book-rating">
@@ -461,25 +640,51 @@ function openBookDetail(bookId) {
   const inCart  = cart.some(c => c.id === book.id);
   const price   = parseFloat(book.price) || 0;
   const rating  = parseFloat(book.rating) || 0;
+  const pkg     = book.packageId ? allPackages.find(p => p.id === book.packageId) : null;
 
   const thumb = book.thumbnail
     ? `<img src="${esc(book.thumbnail)}" alt="${esc(book.title)}" />`
     : `<div class="detail-placeholder"><svg viewBox="0 0 64 88" fill="none"><rect x="2" y="2" width="60" height="84" rx="6" fill="var(--bg3)"/><path d="M18 36h28M18 48h28M18 60h20" stroke="var(--border)" stroke-width="2.5" stroke-linecap="round"/></svg></div>`;
 
+  const previewImgUrls = book.previewImages
+    ? book.previewImages.split('|').map(u => u.trim()).filter(Boolean)
+    : [];
+
+  const previewSection = previewImgUrls.length > 0 ? `
+    <div class="preview-images-section">
+      <h4 class="preview-images-title">
+        <svg viewBox="0 0 20 20" fill="none" style="width:16px;height:16px;flex-shrink:0"><rect x="2" y="4" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.4"/><circle cx="7" cy="9" r="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 15l4-4 3 3 3-3 6 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Preview Pages
+      </h4>
+      <div class="preview-thumbs">
+        ${previewImgUrls.map((url, i) => `
+          <div class="preview-thumb" onclick="openImageGallery('${bookId}', ${i})">
+            <img src="${driveImageUrl(url, 'w200')}" alt="Preview ${i+1}" loading="lazy" />
+            <div class="preview-thumb-overlay"><svg viewBox="0 0 20 20" fill="none" width="18" height="18"><circle cx="10" cy="10" r="8" stroke="white" stroke-width="1.4"/><path d="M7 10h6M10 7v6" stroke="white" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  ` : '';
+
   el('book-detail-content').innerHTML = `
     <div class="book-detail">
       <div class="detail-cover">${thumb}</div>
       <div class="detail-info">
+        ${pkg ? `<div class="pkg-detail-badge" onclick="filterByPackage('${pkg.id}', '${esc(pkg.name)}')">${esc(pkg.name)}</div>` : ''}
         ${book.category ? `<span class="cat-badge mb-sm">${esc(book.category)}</span>` : ''}
         <h1 class="detail-title">${esc(book.title)}</h1>
         <div class="detail-rating">
           <div class="book-rating large">${renderStars(rating)}</div>
           <span class="rating-val">${rating > 0 ? rating.toFixed(1) : 'No ratings yet'}</span>
           ${parseInt(book.ratingsCount) > 0 ? `<span class="text-muted fs-sm">(${book.ratingsCount} ratings)</span>` : ''}
-          ${parseInt(book.salesCount) > 0 ? `<span class="text-muted fs-sm"> · ${book.salesCount} sold</span>` : ''}
+          ${parseInt(book.salesCount)   > 0 ? `<span class="text-muted fs-sm"> · ${book.salesCount} sold</span>` : ''}
         </div>
         ${book.description ? `<p class="detail-desc">${esc(book.description)}</p>` : ''}
         ${book.keywords ? `<div class="detail-keywords">${book.keywords.split(',').map(k => `<span class="keyword-tag">${esc(k.trim())}</span>`).join('')}</div>` : ''}
+
+        ${previewSection}
+
         <div class="detail-price-row">
           <span class="detail-price">₹${price.toFixed(0)}</span>
           ${owned ? '<span class="owned-badge">Owned</span>' : ''}
@@ -487,7 +692,7 @@ function openBookDetail(bookId) {
         ${owned ? `
           <div class="detail-actions">
             <button class="btn btn-primary flex-1" onclick="openReader('${book.id}')">Read Now</button>
-            ${purchases.includes(book.id) ? `<button class="btn btn-ghost flex-1" onclick="openRateModal('${book.id}')">Rate this book</button>` : ''}
+            <button class="btn btn-ghost flex-1" onclick="openRateModal('${book.id}')">Rate this Book</button>
           </div>
         ` : `
           <div class="detail-actions">
@@ -497,21 +702,75 @@ function openBookDetail(bookId) {
             <button class="btn btn-primary flex-1" onclick="buyNow('${book.id}')">Buy Now</button>
           </div>
         `}
-        ${book.pdf && !owned ? `
-          <button class="btn btn-ghost w-full mt-sm" onclick="openPreviewReader('${book.id}')">
-            <svg viewBox="0 0 20 20" fill="none" style="width:16px;height:16px"><path d="M1 10S4 4 10 4s9 6 9 6-3 6-9 6-9-6-9-6z" stroke="currentColor" stroke-width="1.4"/><circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.4"/></svg>
-            Preview (First Pages)
-          </button>
-        ` : ''}
       </div>
     </div>`;
 
   showPage('book');
 }
 
-/* ── READER ──────────────────────────────────────────────────── */
+/* ── IMAGE GALLERY ─────────────────────────────────────────────── */
+function driveImageUrl(url, size) {
+  if (!url) return '';
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=${size || 'w1280'}`;
+  return url;
+}
 
-/* Convert any Google Drive share/view link to an embeddable /preview URL */
+function openImageGallery(bookId, startIndex) {
+  const book = allBooks.find(b => b.id === bookId);
+  if (!book?.previewImages) return;
+  const imgs = book.previewImages.split('|').map(u => u.trim()).filter(Boolean);
+  if (!imgs.length) { showToast('No preview images available.', 'info'); return; }
+
+  galleryImages = imgs;
+  galleryIdx    = startIndex || 0;
+
+  const dotsEl = el('gallery-dots');
+  if (dotsEl) {
+    dotsEl.innerHTML = imgs.map((_, i) =>
+      `<button class="gallery-dot${i === galleryIdx ? ' active' : ''}" onclick="goToGallerySlide(${i})"></button>`
+    ).join('');
+  }
+
+  renderGallerySlide();
+  el('gallery-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function renderGallerySlide() {
+  const imgEl     = el('gallery-img');
+  const counterEl = el('gallery-counter');
+  const prevBtn   = el('gallery-prev');
+  const nextBtn   = el('gallery-next');
+
+  if (imgEl) {
+    imgEl.src = '';
+    imgEl.src = driveImageUrl(galleryImages[galleryIdx], 'w1280');
+  }
+  if (counterEl) counterEl.textContent = `${galleryIdx + 1} / ${galleryImages.length}`;
+  document.querySelectorAll('.gallery-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === galleryIdx);
+  });
+  if (prevBtn) prevBtn.style.display = galleryImages.length > 1 ? '' : 'none';
+  if (nextBtn) nextBtn.style.display = galleryImages.length > 1 ? '' : 'none';
+}
+
+function galleryNext() {
+  galleryIdx = (galleryIdx + 1) % galleryImages.length;
+  renderGallerySlide();
+}
+
+function galleryPrev() {
+  galleryIdx = (galleryIdx - 1 + galleryImages.length) % galleryImages.length;
+  renderGallerySlide();
+}
+
+function goToGallerySlide(idx) {
+  galleryIdx = idx;
+  renderGallerySlide();
+}
+
+/* ── READER (Full PDF) ─────────────────────────────────────────── */
 function driveEmbedUrl(url) {
   if (!url) return '';
   const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
@@ -525,64 +784,10 @@ function openReader(bookId) {
   if (!purchases.includes(bookId) && (!currentUser || currentUser.role !== 'admin')) {
     showToast('Purchase this book to read it.', 'error'); return;
   }
-  const wrap = el('preview-wrap');
-  wrap.classList.remove('mode-preview'); wrap.classList.add('mode-full');
-  el('preview-blocker')?.classList.add('hidden');
-  el('preview-fade')?.classList.add('hidden');
-  el('preview-lock')?.classList.add('hidden');
-  el('preview-badge')?.classList.add('hidden');
-  el('preview-title').textContent = book.title;
-  el('preview-iframe').src        = driveEmbedUrl(book.pdf);
-  el('preview-modal').classList.remove('hidden');
-  document.body.style.overflow    = 'hidden';
-}
-
-function openPreviewReader(bookId) {
-  const book = allBooks.find(b => b.id === bookId);
-  if (!book || !book.pdf) { showToast('No preview available for this book.', 'error'); return; }
-
-  const wrap = el('preview-wrap');
-  wrap.classList.remove('mode-full'); wrap.classList.add('mode-preview');
-  el('preview-blocker')?.classList.remove('hidden');
-  el('preview-fade')?.classList.remove('hidden');
-  el('preview-badge')?.classList.remove('hidden');
-
-  const lockEl     = el('preview-lock');
-  const actionsEl  = el('preview-lock-actions');
-  lockEl?.classList.remove('hidden');
-
-  const alreadyOwned = purchases.includes(bookId);
-  if (actionsEl) {
-    if (alreadyOwned) {
-      actionsEl.innerHTML = '';
-      const btn = document.createElement('button');
-      btn.className = 'btn btn-primary';
-      btn.textContent = 'Read Full Book';
-      btn.onclick = () => { closeModal('preview-modal'); openReader(bookId); };
-      actionsEl.appendChild(btn);
-    } else {
-      actionsEl.innerHTML = '';
-      const inCart = cart.some(c => c.id === bookId);
-      const btn = document.createElement('button');
-      btn.className = 'btn btn-primary';
-      btn.textContent = inCart ? 'View Cart' : 'Add to Cart';
-      btn.onclick = () => {
-        if (!cart.some(c => c.id === bookId)) {
-          addToCart(bookId);
-          btn.textContent = 'View Cart';
-          btn.onclick = () => { closeModal('preview-modal'); toggleCart(); };
-        } else {
-          closeModal('preview-modal'); toggleCart();
-        }
-      };
-      actionsEl.appendChild(btn);
-    }
-  }
-
-  el('preview-title').textContent = book.title;
-  el('preview-iframe').src        = driveEmbedUrl(book.pdf);
-  el('preview-modal').classList.remove('hidden');
-  document.body.style.overflow    = 'hidden';
+  el('reader-title').textContent = book.title;
+  el('reader-iframe').src        = driveEmbedUrl(book.pdf);
+  el('reader-modal').classList.remove('hidden');
+  document.body.style.overflow   = 'hidden';
 }
 
 /* ── CART ─────────────────────────────────────────────────────── */
@@ -597,7 +802,6 @@ function addToCart(bookId) {
   renderCartSidebar();
   showToast(`"${book.title}" added to cart.`, 'success');
   renderBooks();
-  // Update detail page if open
   const dcb = el('detail-cart-btn');
   if (dcb) { dcb.disabled = true; dcb.textContent = 'In Cart'; }
 }
@@ -610,9 +814,7 @@ function removeFromCart(bookId) {
   renderBooks();
 }
 
-function saveCart() {
-  localStorage.setItem('eb_cart', JSON.stringify(cart));
-}
+function saveCart() { localStorage.setItem('eb_cart', JSON.stringify(cart)); }
 
 function updateCartBadge() {
   const count = cart.length;
@@ -630,12 +832,8 @@ function toggleCart() {
   const isHidden = sidebar.classList.contains('hidden');
   sidebar.classList.toggle('hidden', !isHidden);
   overlay.classList.toggle('hidden', !isHidden);
-  if (!isHidden) {
-    document.body.style.overflow = '';
-  } else {
-    renderCartSidebar();
-    document.body.style.overflow = 'hidden';
-  }
+  document.body.style.overflow = isHidden ? 'hidden' : '';
+  if (isHidden) renderCartSidebar();
 }
 
 function renderCartSidebar() {
@@ -683,7 +881,7 @@ function buyNow(bookId) {
   if (!book) return;
   if (!currentUser) { openAuth('login'); return; }
   if (purchases.includes(bookId)) { showToast('You already own this book.', 'info'); return; }
-  // Add to cart if not there, then open checkout
+  checkoutPackageId = '';
   if (!cart.some(c => c.id === bookId)) {
     cart.push(book);
     saveCart();
@@ -695,26 +893,27 @@ function buyNow(bookId) {
 function proceedToCheckout() {
   if (!currentUser) { openAuth('login'); return; }
   if (!cart.length) return;
+  checkoutPackageId = '';
   toggleCart();
   openCheckout(cart);
 }
 
 /* ── CHECKOUT ─────────────────────────────────────────────────── */
-function openCheckout(books) {
+function openCheckout(books, bundleTotal) {
   checkoutCart        = books;
   checkoutCouponCode  = '';
   checkoutDiscount    = 0;
   checkoutScreenshot  = null;
 
-  const total = books.reduce((s, b) => s + (parseFloat(b.price) || 0), 0);
-  checkoutFinalTotal  = total;
+  const sumTotal = books.reduce((s, b) => s + (parseFloat(b.price) || 0), 0);
+  checkoutFinalTotal  = bundleTotal !== undefined ? bundleTotal : sumTotal;
 
-  // Render summary
   el('checkout-summary').innerHTML = books.map(b => `
     <div class="checkout-item">
       <span class="checkout-item-title">${esc(b.title)}</span>
       <span class="checkout-item-price">₹${(parseFloat(b.price) || 0).toFixed(0)}</span>
-    </div>`).join('');
+    </div>`).join('') +
+    (bundleTotal !== undefined ? `<div class="checkout-bundle-note">Bundle pricing applied</div>` : '');
 
   el('coupon-input').value    = '';
   el('coupon-status').classList.add('hidden');
@@ -723,9 +922,12 @@ function openCheckout(books) {
   el('screenshot-input').value = '';
   el('upi-id-text').textContent = UPI_ID || 'UPI ID not configured';
 
-  updateQR(total);
-
-  renderPriceBreakdown(total, 0, total);
+  updateQR(checkoutFinalTotal);
+  renderPriceBreakdown(
+    bundleTotal !== undefined ? bundleTotal : sumTotal,
+    0,
+    checkoutFinalTotal
+  );
 
   el('checkout-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
@@ -748,18 +950,23 @@ async function applyCoupon() {
   statusEl.classList.remove('hidden');
 
   try {
-    const res    = await gas('validateCoupon', { code });
+    const cartBookIds  = checkoutCart.map(b => b.id).join(',');
+    const res    = await gas('validateCoupon', {
+      code,
+      cartBookIds,
+      cartPackageId: checkoutPackageId || ''
+    });
     const coupon = res.coupon;
     const sub    = checkoutCart.reduce((s, b) => s + (parseFloat(b.price) || 0), 0);
     let disc = 0;
     if (coupon.type === 'percent') {
-      disc = Math.min((coupon.value / 100) * sub, sub);
+      disc = Math.min((coupon.value / 100) * checkoutFinalTotal, checkoutFinalTotal);
     } else {
-      disc = Math.min(coupon.value, sub);
+      disc = Math.min(coupon.value, checkoutFinalTotal);
     }
     disc = Math.round(disc);
     checkoutDiscount   = disc;
-    checkoutFinalTotal = sub - disc;
+    checkoutFinalTotal = checkoutFinalTotal - disc;
     checkoutCouponCode = coupon.code;
 
     statusEl.textContent = `Coupon applied! You save ₹${disc}`;
@@ -791,16 +998,14 @@ function updateQR(amount) {
 
 function enlargeQR() {
   const overlay = el('qr-overlay');
-  if (overlay) {
-    overlay.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-  }
+  if (overlay) { overlay.classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
 }
 
 function copyUpi() {
   const upiId = UPI_ID || '';
   if (!upiId) { showToast('UPI ID not configured.', 'error'); return; }
-  navigator.clipboard?.writeText(upiId).then(() => showToast('UPI ID copied!', 'success'))
+  navigator.clipboard?.writeText(upiId)
+    .then(() => showToast('UPI ID copied!', 'success'))
     .catch(() => showToast('Could not copy — please copy manually.', 'info'));
 }
 
@@ -829,6 +1034,7 @@ async function submitPayment() {
     await gas('submitPayment', {
       email:         currentUser.email,
       bookIds:       bookIds.join(','),
+      packageId:     checkoutPackageId || '',
       totalAmount:   checkoutFinalTotal,
       coupon:        checkoutCouponCode,
       discount:      checkoutDiscount,
@@ -836,10 +1042,10 @@ async function submitPayment() {
     });
 
     closeModal('checkout-modal');
-    // Remove purchased books from cart
     cart = cart.filter(c => !bookIds.includes(c.id));
     saveCart();
     updateCartBadge();
+    checkoutPackageId = '';
     renderBooks();
     showToast('Payment submitted! Admin will verify and grant access soon.', 'success');
   } catch (err) {
@@ -848,7 +1054,7 @@ async function submitPayment() {
   setBtnLoading(btn, false, 'Submit Payment Request');
 }
 
-/* ── DASHBOARD ───────────────────────────────────────────────── */
+/* ── DASHBOARD ─────────────────────────────────────────────────── */
 function switchDashTab(tab, btn) {
   document.querySelectorAll('#page-dashboard .tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('#page-dashboard .tab-panel').forEach(p => {
@@ -857,11 +1063,11 @@ function switchDashTab(tab, btn) {
   btn?.classList.add('active');
   const panel = el('dash-' + tab);
   if (panel) { panel.classList.remove('hidden'); panel.classList.add('active'); }
+  if (tab === 'support') loadMyTickets();
 }
 
 async function loadDashboard() {
   if (!currentUser) return;
-
   try {
     purchases = await loadPurchases();
     const payments = (await gas('getPayments', { email: currentUser.email })).payments || [];
@@ -870,13 +1076,12 @@ async function loadDashboard() {
     setText('stat-books',   purchases.length);
     setText('stat-pending', pending.length);
 
-    // Library
     const ownedBooks = allBooks.filter(b => purchases.includes(b.id));
     const libGrid    = el('lib-grid');
     const libEmpty   = el('lib-empty');
 
     if (!ownedBooks.length) {
-      if (libGrid)  libGrid.innerHTML = '';
+      if (libGrid) libGrid.innerHTML = '';
       libEmpty?.classList.remove('hidden');
     } else {
       libEmpty?.classList.add('hidden');
@@ -903,7 +1108,6 @@ async function loadDashboard() {
       }
     }
 
-    // Orders
     const ordersList  = el('orders-list');
     const ordersEmpty = el('orders-empty');
     if (!payments.length) {
@@ -941,7 +1145,95 @@ async function loadDashboard() {
   }
 }
 
-/* ── ADMIN ───────────────────────────────────────────────────── */
+/* ── SUPPORT TICKETS (User) ─────────────────────────────────── */
+function handleTicketScreenshot(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('Screenshot must be under 5 MB.', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    ticketScreenshot = ev.target.result;
+    const lbl  = el('ticket-upload-label');
+    const zone = el('ticket-upload-zone');
+    if (lbl) lbl.textContent = '✓ ' + file.name;
+    zone?.classList.add('uploaded');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitTicket() {
+  if (!currentUser) { openAuth('login'); return; }
+  const btn      = el('submit-ticket-btn');
+  const category = el('ticket-category')?.value || 'General';
+  const message  = val('ticket-message');
+  if (!message) { showToast('Please describe your issue.', 'error'); return; }
+
+  setBtnLoading(btn, true, 'Sending…');
+  try {
+    await gas('submitTicket', {
+      email:          currentUser.email,
+      userName:       currentUser.name || currentUser.username,
+      category,
+      message,
+      screenshotBase64: ticketScreenshot || ''
+    });
+    el('ticket-message').value = '';
+    ticketScreenshot = null;
+    const lbl  = el('ticket-upload-label');
+    const zone = el('ticket-upload-zone');
+    if (lbl) lbl.textContent = 'Attach a screenshot (optional)';
+    zone?.classList.remove('uploaded');
+    el('ticket-screenshot-input').value = '';
+    showToast('Support request submitted!', 'success');
+    loadMyTickets();
+  } catch (err) {
+    showToast('Failed to submit ticket: ' + err.message, 'error');
+  }
+  setBtnLoading(btn, false, 'Send Request');
+}
+
+async function loadMyTickets() {
+  if (!currentUser) return;
+  const container = el('my-tickets-list');
+  const empty     = el('my-tickets-empty');
+  if (!container) return;
+
+  container.innerHTML = '<div class="text-muted fs-sm p-md">Loading…</div>';
+  try {
+    const res     = await gas('getMyTickets', { email: currentUser.email });
+    const tickets = res.tickets || [];
+    if (!tickets.length) {
+      container.innerHTML = '';
+      empty?.classList.remove('hidden');
+      return;
+    }
+    empty?.classList.add('hidden');
+    container.innerHTML = tickets.map(t => {
+      const statusClass = t.status === 'Resolved' ? 'approved' : t.status === 'Pending' ? 'pending' : 'rejected';
+      return `
+        <div class="ticket-card">
+          <div class="ticket-header">
+            <span class="ticket-category">${esc(t.category)}</span>
+            <span class="status-badge ${statusClass}">${esc(t.status)}</span>
+            <span class="ticket-date text-muted fs-xs">${formatDate(t.createdAt)}</span>
+          </div>
+          <p class="ticket-message">${esc(t.message)}</p>
+          ${t.adminReply ? `
+            <div class="ticket-reply">
+              <span class="ticket-reply-label">Admin Reply:</span>
+              <p>${esc(t.adminReply)}</p>
+            </div>
+          ` : ''}
+          ${t.screenshotUrl && t.screenshotUrl !== 'upload_failed' && t.screenshotUrl !== '' ?
+            `<a href="${esc(t.screenshotUrl)}" target="_blank" class="ticket-screenshot-link">View attached screenshot</a>` : ''}
+        </div>`;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = '<div class="text-muted fs-sm p-md">Failed to load tickets.</div>';
+  }
+}
+
+/* ── ADMIN ─────────────────────────────────────────────────────── */
 function switchAdminTab(tab, btn) {
   document.querySelectorAll('#page-admin .tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('#page-admin .tab-panel').forEach(p => {
@@ -955,19 +1247,34 @@ function switchAdminTab(tab, btn) {
   if (tab === 'books')    loadAdminBooks();
   if (tab === 'coupons')  loadAdminCoupons();
   if (tab === 'users')    loadAdminUsers();
+  if (tab === 'packages') loadAdminPackages();
+  if (tab === 'support')  loadAdminTickets();
 }
 
 async function loadAdmin() {
   if (!adminCreds) return;
   try {
     const a = await gas('getAnalytics', adminCreds);
-    setText('a-users',   a.totalUsers);
-    setText('a-books',   a.totalBooks);
-    setText('a-sales',   a.totalSales);
-    setText('a-revenue', '₹' + (parseFloat(a.totalRevenue) || 0).toFixed(0));
-    setText('a-pending', a.pendingCount);
+    setText('a-users',    a.totalUsers);
+    setText('a-books',    a.totalBooks);
+    setText('a-packages', a.totalPackages || 0);
+    setText('a-sales',    a.totalSales);
+    setText('a-revenue',  '₹' + (parseFloat(a.totalRevenue) || 0).toFixed(0));
+    setText('a-pending',  a.pendingCount);
   } catch (err) { showToast('Analytics error: ' + err.message, 'error'); }
   loadAdminOrders();
+  loadPackagesForBookForm();
+}
+
+async function loadPackagesForBookForm() {
+  const select = el('b-package');
+  if (!select) return;
+  try {
+    const res  = await gas('getAllPackages', adminCreds);
+    const pkgs = res.packages || [];
+    select.innerHTML = '<option value="">None (standalone book)</option>' +
+      pkgs.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  } catch {}
 }
 
 async function loadAdminOrders() {
@@ -997,7 +1304,7 @@ async function loadAdminOrders() {
               const b = books.find(bk => bk.id === bid.trim());
               return b ? esc(b.title) : bid.trim();
             }).join(', ');
-            const sc = p.screenshotUrl && p.screenshotUrl !== 'upload_failed'
+            const sc = p.screenshotUrl && p.screenshotUrl !== 'upload_failed' && p.screenshotUrl !== ''
               ? `<a href="${esc(p.screenshotUrl)}" target="_blank" class="link-btn">View</a>`
               : '<span class="text-muted">—</span>';
             const statusClass = p.status === 'Approved' ? 'approved' : p.status === 'Rejected' ? 'rejected' : 'pending';
@@ -1042,15 +1349,20 @@ async function loadAdminBooks() {
     list.innerHTML = `
       <div class="orders-table-wrap">
         <table class="data-table">
-          <thead><tr><th>Cover</th><th>Title</th><th>Category</th><th>Price</th><th>Rating</th><th>Sold</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Cover</th><th>Title</th><th>Category</th><th>Package</th><th>Price</th><th>Preview</th><th>Sold</th><th>Actions</th></tr></thead>
           <tbody>${books.map(b => {
-            const thumb = b.thumbnail ? `<img src="${esc(b.thumbnail)}" class="table-thumb" alt="" />` : '<div class="table-thumb-placeholder"></div>';
+            const thumb = b.thumbnail
+              ? `<img src="${esc(b.thumbnail)}" class="table-thumb" alt="" />`
+              : '<div class="table-thumb-placeholder"></div>';
+            const pkg = allPackages.find(p => p.id === b.packageId);
+            const previewCount = b.previewImages ? b.previewImages.split('|').filter(Boolean).length : 0;
             return `<tr>
               <td>${thumb}</td>
               <td class="fw-500 fs-sm">${esc(b.title)}</td>
               <td><span class="cat-badge">${esc(b.category || 'Other')}</span></td>
+              <td class="fs-xs text-muted">${pkg ? esc(pkg.name) : '—'}</td>
               <td>₹${parseFloat(b.price || 0).toFixed(0)}</td>
-              <td>${parseFloat(b.rating || 0).toFixed(1)} ★</td>
+              <td class="fs-xs text-muted">${previewCount > 0 ? previewCount + ' imgs' : '—'}</td>
               <td>${parseInt(b.salesCount) || 0}</td>
               <td><button class="btn btn-sm" style="background:var(--danger);color:#fff" onclick="adminDeleteBook('${b.id}', '${esc(b.title).replace(/'/g, "\\'")}')">Delete</button></td>
             </tr>`;
@@ -1062,6 +1374,42 @@ async function loadAdminBooks() {
   } catch (err) {
     el('admin-books-loading')?.classList.add('hidden');
     showToast('Failed to load books: ' + err.message, 'error');
+  }
+}
+
+async function loadAdminPackages() {
+  if (!adminCreds) return;
+  const list    = el('admin-packages-list');
+  const loading = el('admin-packages-loading');
+  loading?.classList.remove('hidden');
+  list?.classList.add('hidden');
+  try {
+    const res      = await gas('getAllPackages', adminCreds);
+    const packages = res.packages || [];
+    loading?.classList.add('hidden');
+    if (!packages.length) {
+      list.innerHTML = '<div class="text-center text-muted p-lg">No packages yet. Create one below.</div>';
+      list.classList.remove('hidden');
+      return;
+    }
+    list.innerHTML = `
+      <div class="orders-table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Books</th><th>Full Price</th><th>Bundle Price</th><th>Actions</th></tr></thead>
+          <tbody>${packages.map(p => `<tr>
+            <td class="fw-500 fs-sm">${esc(p.name)}</td>
+            <td class="text-muted">${parseInt(p.bookCount) || 0} books</td>
+            <td>${parseFloat(p.price || 0) > 0 ? '₹' + parseFloat(p.price).toFixed(0) : '—'}</td>
+            <td>${parseFloat(p.discountedPrice || 0) > 0 ? '₹' + parseFloat(p.discountedPrice).toFixed(0) : '—'}</td>
+            <td><button class="btn btn-sm" style="background:var(--danger);color:#fff" onclick="adminDeletePackage('${p.id}', '${esc(p.name).replace(/'/g, "\\'")}')">Delete</button></td>
+          </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    list.classList.remove('hidden');
+  } catch (err) {
+    loading?.classList.add('hidden');
+    showToast('Failed to load packages: ' + err.message, 'error');
   }
 }
 
@@ -1078,17 +1426,21 @@ async function loadAdminCoupons() {
     list.innerHTML = `
       <div class="orders-table-wrap">
         <table class="data-table">
-          <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Expiry</th><th>Status</th><th>Used</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Expiry</th><th>Scope</th><th>Max Uses</th><th>Used</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>${coupons.map(c => {
             const valStr = c.type === 'percent' ? `${c.value}%` : `₹${c.value}`;
             const statusClass = c.status === 'active' ? 'approved' : 'rejected';
+            const maxUses = parseInt(c.maxUses) || 0;
+            const scopeLabel = c.scope === 'book' ? 'Book' : c.scope === 'package' ? 'Package' : 'All';
             return `<tr>
               <td class="fw-600 fs-sm">${esc(c.code)}</td>
               <td class="fs-sm">${c.type === 'percent' ? 'Percentage' : 'Fixed'}</td>
               <td>${valStr}</td>
               <td class="fs-sm text-muted">${c.expiry || '—'}</td>
-              <td><span class="status-badge ${statusClass}">${c.status}</span></td>
+              <td class="fs-sm"><span class="scope-badge scope-${c.scope || 'all'}">${scopeLabel}</span></td>
+              <td class="text-muted">${maxUses > 0 ? maxUses : '∞'}</td>
               <td class="text-muted">${parseInt(c.usageCount) || 0}</td>
+              <td><span class="status-badge ${statusClass}">${c.status}</span></td>
               <td><button class="btn btn-sm" style="background:var(--danger);color:#fff" onclick="adminDeleteCoupon('${esc(c.code)}')">Delete</button></td>
             </tr>`;
           }).join('')}
@@ -1135,7 +1487,55 @@ async function loadAdminUsers() {
   }
 }
 
-/* ── ADMIN ACTIONS ───────────────────────────────────────────── */
+async function loadAdminTickets() {
+  if (!adminCreds) return;
+  const list = el('admin-tickets-list');
+  if (!list) return;
+  list.innerHTML = '<div class="text-muted fs-sm p-md">Loading…</div>';
+  try {
+    const res     = await gas('getAllTickets', adminCreds);
+    const tickets = res.tickets || [];
+    if (!tickets.length) {
+      list.innerHTML = '<div class="text-center text-muted p-lg">No support tickets yet.</div>';
+      return;
+    }
+    list.innerHTML = tickets.map(t => {
+      const statusClass = t.status === 'Resolved' ? 'approved' : t.status === 'Pending' ? 'pending' : 'rejected';
+      return `
+        <div class="ticket-card admin-ticket">
+          <div class="ticket-header">
+            <div>
+              <span class="ticket-user fw-600 fs-sm">${esc(t.userName || t.userEmail)}</span>
+              <span class="text-muted fs-xs ml-sm">${esc(t.userEmail)}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="ticket-category">${esc(t.category)}</span>
+              <span class="status-badge ${statusClass}">${esc(t.status)}</span>
+              <span class="ticket-date text-muted fs-xs">${formatDate(t.createdAt)}</span>
+            </div>
+          </div>
+          <p class="ticket-message">${esc(t.message)}</p>
+          ${t.screenshotUrl && t.screenshotUrl !== 'upload_failed' && t.screenshotUrl !== '' ?
+            `<a href="${esc(t.screenshotUrl)}" target="_blank" class="ticket-screenshot-link">View Screenshot</a>` : ''}
+          <div class="ticket-reply-form">
+            <textarea class="ticket-reply-input" id="reply-${t.id}" placeholder="Write a reply…" rows="2">${esc(t.adminReply || '')}</textarea>
+            <div class="ticket-reply-actions">
+              <select id="status-${t.id}" class="ticket-status-select">
+                <option value="Open" ${t.status === 'Open' ? 'selected' : ''}>Open</option>
+                <option value="Pending" ${t.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="Resolved" ${t.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="adminReplyTicket('${t.id}')">Save Reply</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    list.innerHTML = '<div class="text-muted fs-sm p-md">Failed to load tickets.</div>';
+  }
+}
+
+/* ── ADMIN ACTIONS ─────────────────────────────────────────────── */
 async function adminApprove(paymentId) {
   if (!confirm('Approve this payment and grant book access?')) return;
   try {
@@ -1156,12 +1556,18 @@ async function adminReject(paymentId) {
 }
 
 async function submitAddBook() {
-  const btn = el('add-book-btn');
+  const btn   = el('add-book-btn');
   const title = val('b-title');
   const price = val('b-price');
   const pdf   = val('b-pdf');
   if (!title || !pdf) { showToast('Title and PDF URL are required.', 'error'); return; }
   if (!price || parseFloat(price) <= 0) { showToast('Please enter a valid price.', 'error'); return; }
+
+  const previewUrls = ['b-prev1', 'b-prev2', 'b-prev3', 'b-prev4', 'b-prev5']
+    .map(id => val(id))
+    .filter(Boolean)
+    .join('|');
+
   setBtnLoading(btn, true, 'Adding…');
   try {
     await gas('addBook', {
@@ -1169,15 +1575,19 @@ async function submitAddBook() {
       title,
       price,
       pdf,
-      description: val('b-desc'),
-      thumbnail:   val('b-thumb'),
-      keywords:    val('b-keywords'),
-      category:    el('b-category')?.value || 'Other',
-      rating:      val('b-rating') || 0
+      description:   val('b-desc'),
+      thumbnail:     val('b-thumb'),
+      previewImages: previewUrls,
+      keywords:      val('b-keywords'),
+      category:      el('b-category')?.value || 'Other',
+      packageId:     el('b-package')?.value  || '',
+      rating:        val('b-rating') || 0
     });
-    clearInputs(['b-title', 'b-price', 'b-pdf', 'b-desc', 'b-thumb', 'b-keywords', 'b-rating']);
+    clearInputs(['b-title', 'b-price', 'b-pdf', 'b-desc', 'b-thumb',
+                 'b-keywords', 'b-rating', 'b-prev1', 'b-prev2', 'b-prev3', 'b-prev4', 'b-prev5']);
     showToast('Book added successfully!', 'success');
-    loadBooks();
+    clearCache('books');
+    loadBooks(true);
     loadAdmin();
   } catch (err) { showToast(err.message, 'error'); }
   setBtnLoading(btn, false, 'Add Book');
@@ -1188,21 +1598,74 @@ async function adminDeleteBook(bookId, title) {
   try {
     await gas('deleteBook', { ...adminCreds, bookId });
     showToast('Book deleted.', 'info');
-    loadBooks();
+    clearCache('books');
+    loadBooks(true);
     loadAdminBooks();
     loadAdmin();
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function submitAddCoupon() {
-  const code   = val('c-code').toUpperCase();
-  const type   = el('c-type')?.value || 'percent';
-  const value  = val('c-value');
-  const expiry = val('c-expiry');
-  if (!code || !value || !expiry) { showToast('All coupon fields are required.', 'error'); return; }
+async function submitAddPackage() {
+  const btn         = el('add-pkg-btn');
+  const name        = val('pkg-name');
+  const description = val('pkg-desc');
+  const coverImage  = val('pkg-cover');
+  const price       = val('pkg-price');
+  const discPrice   = val('pkg-disc-price');
+
+  if (!name) { showToast('Package name is required.', 'error'); return; }
+  setBtnLoading(btn, true, 'Creating…');
   try {
-    await gas('addCoupon', { ...adminCreds, code, type, value, expiry });
-    clearInputs(['c-code', 'c-value', 'c-expiry']);
+    await gas('addPackage', {
+      ...adminCreds,
+      name,
+      description,
+      coverImage,
+      price:           parseFloat(price)     || 0,
+      discountedPrice: parseFloat(discPrice) || 0
+    });
+    clearInputs(['pkg-name', 'pkg-desc', 'pkg-cover', 'pkg-price', 'pkg-disc-price']);
+    showToast('Package created!', 'success');
+    clearCache('packages');
+    loadAdminPackages();
+    loadAdmin();
+    loadPackagesForBookForm();
+    const pkgRes = await gas('getPackages');
+    allPackages  = pkgRes.packages || [];
+    setCached('packages', allPackages);
+    renderPackagesSection();
+  } catch (err) { showToast(err.message, 'error'); }
+  setBtnLoading(btn, false, 'Create Package');
+}
+
+async function adminDeletePackage(pkgId, name) {
+  if (!confirm(`Delete package "${name}"?`)) return;
+  try {
+    await gas('deletePackage', { ...adminCreds, packageId: pkgId });
+    showToast('Package deleted.', 'info');
+    clearCache('packages');
+    loadAdminPackages();
+    loadPackagesForBookForm();
+    const pkgRes = await gas('getPackages');
+    allPackages  = pkgRes.packages || [];
+    setCached('packages', allPackages);
+    renderPackagesSection();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function submitAddCoupon() {
+  const code    = val('c-code').toUpperCase();
+  const type    = el('c-type')?.value  || 'percent';
+  const value   = val('c-value');
+  const expiry  = val('c-expiry');
+  const maxUses = val('c-max-uses');
+  const scope   = el('c-scope')?.value || 'all';
+  const scopeId = val('c-scope-id');
+
+  if (!code || !value || !expiry) { showToast('Code, value, and expiry are required.', 'error'); return; }
+  try {
+    await gas('addCoupon', { ...adminCreds, code, type, value, expiry, maxUses, scope, scopeId });
+    clearInputs(['c-code', 'c-value', 'c-expiry', 'c-max-uses', 'c-scope-id']);
     showToast('Coupon created!', 'success');
     loadAdminCoupons();
   } catch (err) { showToast(err.message, 'error'); }
@@ -1217,27 +1680,51 @@ async function adminDeleteCoupon(code) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-/* ── RATING MODAL ────────────────────────────────────────────── */
+async function adminReplyTicket(ticketId) {
+  const reply  = (el(`reply-${ticketId}`)?.value  || '').trim();
+  const status = el(`status-${ticketId}`)?.value || 'Open';
+  try {
+    await gas('replyTicket', { ...adminCreds, ticketId, reply, status });
+    showToast('Reply saved.', 'success');
+    loadAdminTickets();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+/* ── COUPON SCOPE UI ─────────────────────────────────────────── */
+function onCouponScopeChange() {
+  const scope      = el('c-scope')?.value;
+  const scopeRow   = el('c-scope-id-row');
+  const scopeLabel = el('c-scope-id-label');
+  if (!scopeRow || !scopeLabel) return;
+  if (scope === 'all') {
+    scopeRow.classList.add('hidden');
+  } else {
+    scopeRow.classList.remove('hidden');
+    scopeLabel.textContent = scope === 'book' ? 'Book ID' : 'Package ID';
+  }
+}
+
+/* ── RATING MODAL ─────────────────────────────────────────────── */
 function openRateModal(bookId) {
   const book = allBooks.find(b => b.id === bookId);
   if (!book) return;
-  const existing = `<div class="modal-overlay" id="rate-modal" onclick="closeModal('rate-modal', event)">
-    <div class="modal">
-      <div class="modal-body">
-        <h2 class="modal-title">Rate this Book</h2>
-        <p class="text-muted fs-sm mb-lg">${esc(book.title)}</p>
-        <div class="rate-stars" id="rate-stars">
-          ${[1,2,3,4,5].map(i => `<button class="rate-star" onclick="setRating(${i}, '${bookId}')" data-val="${i}">★</button>`).join('')}
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="modal-overlay" id="rate-modal" onclick="closeModal('rate-modal', event)">
+      <div class="modal">
+        <div class="modal-body">
+          <h2 class="modal-title">Rate this Book</h2>
+          <p class="text-muted fs-sm mb-lg">${esc(book.title)}</p>
+          <div class="rate-stars" id="rate-stars">
+            ${[1,2,3,4,5].map(i => `<button class="rate-star" onclick="setRating(${i}, '${bookId}')" data-val="${i}">★</button>`).join('')}
+          </div>
+          <p class="text-muted fs-xs mt-sm" id="rate-label">Select a rating</p>
+          <button class="btn btn-primary w-full mt-md" id="rate-submit-btn" onclick="submitRating('${bookId}')" disabled>Submit Rating</button>
         </div>
-        <p class="text-muted fs-xs mt-sm" id="rate-label">Select a rating</p>
-        <button class="btn btn-primary w-full mt-md" id="rate-submit-btn" onclick="submitRating('${bookId}')" disabled>Submit Rating</button>
+        <button class="modal-close" onclick="closeModal('rate-modal')" aria-label="Close">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
       </div>
-      <button class="modal-close" onclick="closeModal('rate-modal')" aria-label="Close">
-        <svg viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-  </div>`;
-  document.body.insertAdjacentHTML('beforeend', existing);
+    </div>`);
 }
 
 let selectedRating = 0;
@@ -1261,25 +1748,27 @@ async function submitRating(bookId) {
     closeModal('rate-modal');
     el('rate-modal')?.remove();
     showToast('Rating submitted!', 'success');
-    loadBooks();
+    clearCache('books');
+    loadBooks(true);
   } catch (err) { showToast(err.message, 'error'); }
   setBtnLoading(btn, false, 'Submit Rating');
 }
 
-/* ── MODALS ───────────────────────────────────────────────────── */
+/* ── MODALS ─────────────────────────────────────────────────────── */
 function closeModal(id, event) {
   if (event && event.target !== el(id)) return;
   const modal = el(id);
   if (modal) {
     modal.classList.add('hidden');
-    if (id === 'preview-modal') el('preview-iframe').src = '';
-    if (['checkout-modal', 'preview-modal', 'auth-modal'].includes(id)) {
+    if (id === 'reader-modal') { el('reader-iframe').src = ''; }
+    if (id === 'gallery-modal') { galleryImages = []; }
+    if (['checkout-modal', 'reader-modal', 'auth-modal', 'gallery-modal'].includes(id)) {
       document.body.style.overflow = '';
     }
   }
 }
 
-/* ── TOAST ────────────────────────────────────────────────────── */
+/* ── TOAST ─────────────────────────────────────────────────────── */
 function showToast(message, type = 'info') {
   const container = el('toast-container');
   if (!container) return;
@@ -1295,7 +1784,7 @@ function showToast(message, type = 'info') {
   setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 4000);
 }
 
-/* ── UTILS ────────────────────────────────────────────────────── */
+/* ── UTILS ─────────────────────────────────────────────────────── */
 function el(id)            { return document.getElementById(id); }
 function val(id)           { return (el(id)?.value || '').trim(); }
 function setText(id, text) { const e = el(id); if (e) e.textContent = text; }
@@ -1321,8 +1810,8 @@ function clearInputs(ids) {
 }
 function setBtnLoading(btn, loading, text) {
   if (!btn) return;
-  btn.disabled     = loading;
-  btn.textContent  = text;
+  btn.disabled    = loading;
+  btn.textContent = text;
 }
 function formatDate(str) {
   if (!str) return '—';
