@@ -176,6 +176,9 @@
     <!-- Books grid -->
     <section class="books-section">
       <div class="container">
+        <!-- shown when user is browsing a specific bundle's books -->
+        <div id="bundle-banner" class="bundle-banner hidden"></div>
+
         <div id="books-loading" class="skeleton-grid">
           <div class="skeleton-card"></div><div class="skeleton-card"></div>
           <div class="skeleton-card"></div><div class="skeleton-card"></div>
@@ -702,6 +705,84 @@
         <iframe id="reader-iframe" src="" title="Book Reader" allowfullscreen style="width:100%;height:calc(90vh - 56px);border:none;display:block"></iframe>
       </div>
       <button class="modal-close" onclick="closeModal('reader-modal')" aria-label="Close">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       EDIT BOOK MODAL (Admin)
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay hidden" id="edit-book-modal" onclick="closeModal('edit-book-modal', event)">
+    <div class="modal modal-lg">
+      <div class="modal-body">
+        <h2 class="modal-title">Edit Book</h2>
+        <p class="text-muted fs-sm mb-lg" style="background:var(--primary-light);padding:8px 12px;border-radius:8px;color:var(--primary);font-weight:500">
+          ℹ️ Only book details are updated. Existing purchasers keep their access.
+        </p>
+        <input type="hidden" id="eb-book-id" />
+        <div class="form-grid">
+          <div class="form-group span-2">
+            <label>Title *</label>
+            <input type="text" id="eb-title" placeholder="Book title" />
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="eb-category">
+              <option value="Class 9">Class 9</option>
+              <option value="Class 10">Class 10</option>
+              <option value="Class 11">Class 11</option>
+              <option value="Class 12">Class 12</option>
+              <option value="JEE">JEE</option>
+              <option value="NEET">NEET</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Package / Bundle</label>
+            <select id="eb-package">
+              <option value="">None (standalone book)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Price (₹) *</label>
+            <input type="number" id="eb-price" placeholder="199" min="1" />
+          </div>
+          <div class="form-group">
+            <label>Rating (1–5)</label>
+            <input type="number" id="eb-rating" placeholder="0" min="0" max="5" step="0.1" />
+          </div>
+          <div class="form-group span-2">
+            <label>Keywords (comma-separated)</label>
+            <input type="text" id="eb-keywords" placeholder="math, algebra, class 10" />
+          </div>
+          <div class="form-group span-2">
+            <label>Description</label>
+            <textarea id="eb-desc" rows="3" placeholder="Brief description…"></textarea>
+          </div>
+          <div class="form-group span-2">
+            <label>Thumbnail URL</label>
+            <input type="url" id="eb-thumb" placeholder="https://drive.google.com/…" />
+          </div>
+          <div class="form-group span-2">
+            <label>PDF URL *</label>
+            <input type="url" id="eb-pdf" placeholder="https://drive.google.com/…" />
+          </div>
+        </div>
+        <div class="form-section-label">
+          <svg viewBox="0 0 20 20" fill="none" style="width:16px;height:16px"><rect x="2" y="4" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.4"/><circle cx="7" cy="9" r="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 15l4-4 3 3 3-3 6 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Preview Images (up to 5)
+        </div>
+        <div class="form-grid preview-imgs-grid">
+          <div class="form-group"><input type="url" id="eb-prev1" placeholder="Preview image 1 URL" /></div>
+          <div class="form-group"><input type="url" id="eb-prev2" placeholder="Preview image 2 URL" /></div>
+          <div class="form-group"><input type="url" id="eb-prev3" placeholder="Preview image 3 URL" /></div>
+          <div class="form-group"><input type="url" id="eb-prev4" placeholder="Preview image 4 URL" /></div>
+          <div class="form-group"><input type="url" id="eb-prev5" placeholder="Preview image 5 URL" /></div>
+        </div>
+        <button class="btn btn-primary w-full mt-md" id="edit-book-btn" onclick="submitEditBook()">Save Changes</button>
+      </div>
+      <button class="modal-close" onclick="closeModal('edit-book-modal')" aria-label="Close">
         <svg viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       </button>
     </div>
