@@ -12,7 +12,7 @@
    ========================================================= */
 
 var ADMIN_USERNAME = 'owner';
-var ADMIN_PASSWORD = 'onwer@edubooks';
+var ADMIN_PASSWORD = 'owner@edubooks';
 var SPREADSHEET_ID = ''; // Set your Spreadsheet ID here or leave blank to use active SS
 
 /* ── SCHEMA ───────────────────────────────────────────────── */
@@ -263,6 +263,47 @@ var ACTIONS = {
     for (var i = 1; i < rows.length; i++) {
       if (rows[i][idCol] === b.bookId) {
         sh.deleteRow(i + 1);
+        return { success: true };
+      }
+    }
+    return { success: false, error: 'Book not found.' };
+  },
+
+  /* updateBook — edits an existing book row in-place.
+     The bookId (primary key) is NEVER changed, so all existing
+     Purchases rows that reference this bookId remain valid and
+     purchasers do NOT lose access. */
+  updateBook: function(b) {
+    if (!adminCheck_(b)) return { success: false, error: 'Unauthorized.' };
+    if (!b.bookId)       return { success: false, error: 'Book ID is required.' };
+    if (!b.title || !b.pdf)
+      return { success: false, error: 'Title and PDF URL are required.' };
+    if (!b.price || parseFloat(b.price) <= 0)
+      return { success: false, error: 'Valid price is required.' };
+
+    var sh      = ensureSheet_('Books');
+    var rows    = sh.getDataRange().getValues();
+    var headers = rows[0];
+    var idCol   = headers.indexOf('id');
+
+    for (var i = 1; i < rows.length; i++) {
+      if (String(rows[i][idCol]) === String(b.bookId)) {
+        var updates = {
+          title:         String(b.title).trim(),
+          description:   String(b.description   || '').trim(),
+          thumbnail:     String(b.thumbnail     || '').trim(),
+          previewImages: String(b.previewImages || '').trim(),
+          pdf:           String(b.pdf).trim(),
+          price:         parseFloat(b.price),
+          keywords:      String(b.keywords  || '').trim(),
+          category:      String(b.category  || 'Other').trim(),
+          packageId:     String(b.packageId || '').trim(),
+          rating:        parseFloat(b.rating) || 0
+        };
+        Object.keys(updates).forEach(function(key) {
+          var col = headers.indexOf(key);
+          if (col >= 0) sh.getRange(i + 1, col + 1).setValue(updates[key]);
+        });
         return { success: true };
       }
     }
@@ -675,17 +716,24 @@ var ACTIONS = {
   getAnalytics: function(b) {
     if (!adminCheck_(b)) return { success: false, error: 'Unauthorized.' };
 
-    var users    = getRows_('Users');
-    var books    = getRows_('Books');
-    var packages = getRows_('Packages');
-    var payments = getRows_('Payments');
-    var purch    = getRows_('Purchases');
-    var tickets  = getRows_('SupportTickets');
+    // Each sheet read is wrapped defensively so a missing/corrupt sheet
+    // never crashes the whole analytics call.
+    function safeRows(name) {
+      try { return getRows_(name); } catch(e) { return []; }
+    }
 
-    var approved = payments.filter(function(p) { return p.status === 'Approved'; });
-    var pending  = payments.filter(function(p) { return p.status === 'Pending';  });
+    var users    = safeRows('Users');
+    var books    = safeRows('Books');
+    var packages = safeRows('Packages');
+    var payments = safeRows('Payments');
+    var purch    = safeRows('Purchases');
+    var tickets  = safeRows('SupportTickets');
+    var ratings  = safeRows('Ratings');
+
+    var approved = payments.filter(function(p) { return String(p.status) === 'Approved'; });
+    var pending  = payments.filter(function(p) { return String(p.status) === 'Pending';  });
     var revenue  = approved.reduce(function(sum, p) { return sum + (parseFloat(p.totalAmount) || 0); }, 0);
-    var openTix  = tickets.filter(function(t)  { return t.status !== 'Resolved'; });
+    var openTix  = tickets.filter(function(t)  { return String(t.status) !== 'Resolved'; });
 
     return {
       totalUsers:    users.length,
@@ -695,7 +743,8 @@ var ACTIONS = {
       totalRevenue:  revenue,
       pendingCount:  pending.length,
       approvedCount: approved.length,
-      openTickets:   openTix.length
+      openTickets:   openTix.length,
+      totalRatings:  ratings.length
     };
   },
 
