@@ -5,10 +5,8 @@
    1. GAS_URL  → paste your deployed Google Apps Script Web App URL
    2. UPI_ID   → paste your UPI payment ID  (e.g. yourname@upi)
 ═══════════════════════════════════════════════════════════════ */
-
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwF9oL40L4sIxhwDhpdBJgGO5VxVrr9SdB1eHwFtLqSnT5TFIHzmEI9FujxU8s00QbK/exec';
 const UPI_ID  = 'ganeshkumardwivedi90@oksbi';
-
 /* ── STATE ─────────────────────────────────────────────────────── */
 let currentUser   = null;
 let adminCreds    = null;
@@ -22,12 +20,14 @@ let currentSort     = 'newest';
 let searchQuery     = '';
 
 // Checkout state
-let checkoutCart        = [];
-let checkoutFinalTotal  = 0;
-let checkoutDiscount    = 0;
-let checkoutCouponCode  = '';
-let checkoutScreenshot  = null;
-let checkoutPackageId   = '';
+let checkoutCart          = [];
+let checkoutOriginalTotal = 0;   // price before any coupon — never mutated after openCheckout
+let checkoutFinalTotal    = 0;
+let checkoutDiscount      = 0;
+let checkoutCouponCode    = '';
+let checkoutCouponApplied = false; // prevent re-applying coupons
+let checkoutScreenshot    = null;
+let checkoutPackageId     = '';
 
 // Gallery state
 let galleryImages = [];
@@ -556,10 +556,58 @@ function renderBooks() {
   const loading = el('books-loading');
   const grid    = el('books-grid');
   const empty   = el('books-empty');
+  const banner  = el('bundle-banner');
   if (!grid) return;
 
   loading?.classList.add('hidden');
   grid.classList.remove('hidden');
+
+  // Bundle banner — shown while the user is browsing a filtered bundle
+  if (banner) {
+    if (currentCategory.startsWith('__pkg__')) {
+      const pkgId    = currentCategory.replace('__pkg__', '');
+      const pkg      = allPackages.find(p => p.id === pkgId);
+      if (pkg) {
+        const pkgBooks  = allBooks.filter(b => String(b.packageId) === String(pkgId));
+        const bookCount = pkgBooks.length;
+        const discPrice = parseFloat(pkg.discountedPrice) || 0;
+        const origPrice = parseFloat(pkg.price) || 0;
+        const savings   = discPrice > 0 && origPrice > discPrice
+          ? Math.round(((origPrice - discPrice) / origPrice) * 100) : 0;
+
+        banner.innerHTML = `
+          <div class="bundle-banner-inner">
+            <div class="bundle-banner-left">
+              <div class="bundle-banner-top">
+                <span class="bundle-banner-pill">Bundle</span>
+                <span class="bundle-banner-name">${esc(pkg.name)}</span>
+              </div>
+              <div class="bundle-banner-sub">
+                ${bookCount} book${bookCount !== 1 ? 's' : ''}
+                ${pkg.description ? ` · ${esc(pkg.description)}` : ''}
+              </div>
+            </div>
+            <div class="bundle-banner-right">
+              ${discPrice > 0 ? `
+                <div class="bundle-banner-pricing">
+                  <span class="bundle-banner-price">₹${discPrice.toFixed(0)}</span>
+                  ${origPrice > discPrice ? `<span class="bundle-banner-orig">₹${origPrice.toFixed(0)}</span>` : ''}
+                  ${savings > 0 ? `<span class="bundle-banner-save">${savings}% off</span>` : ''}
+                </div>` : ''}
+              <div class="bundle-banner-btns">
+                <button class="btn btn-ghost btn-sm" onclick="setCategory('all', document.querySelector('.filter-chips .chip'))">← All Books</button>
+                ${bookCount > 0 ? `<button class="btn btn-primary btn-sm" onclick="buyBundle('${pkgId}')">Buy Bundle</button>` : ''}
+              </div>
+            </div>
+          </div>`;
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    } else {
+      banner.classList.add('hidden');
+    }
+  }
 
   if (!filteredBooks.length) {
     grid.innerHTML = '';
@@ -642,6 +690,47 @@ function openBookDetail(bookId) {
   const rating  = parseFloat(book.rating) || 0;
   const pkg     = book.packageId ? allPackages.find(p => p.id === book.packageId) : null;
 
+  // Build bundle upsell block (only for non-owned books that belong to a package)
+  let bundleUpsell = '';
+  if (pkg && !owned) {
+    const pkgBooks    = allBooks.filter(b => String(b.packageId) === String(pkg.id));
+    const ownedInPkg  = pkgBooks.filter(b => purchases.includes(b.id)).length;
+    const discPrice   = parseFloat(pkg.discountedPrice) || 0;
+    const origPrice   = parseFloat(pkg.price) || 0;
+    const savings     = discPrice > 0 && origPrice > discPrice
+      ? Math.round(((origPrice - discPrice) / origPrice) * 100) : 0;
+
+    bundleUpsell = `
+      <div class="bundle-upsell">
+        <div class="bundle-upsell-header">
+          <svg viewBox="0 0 20 20" fill="none" width="15" height="15">
+            <rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M6 3v14M10 7h4M10 11h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+          Also available as a bundle
+        </div>
+        <div class="bundle-upsell-row">
+          <div class="bundle-upsell-info">
+            <div class="bundle-upsell-name">${esc(pkg.name)}</div>
+            <div class="bundle-upsell-meta">
+              ${pkgBooks.length} book${pkgBooks.length !== 1 ? 's' : ''}
+              ${ownedInPkg > 0 ? ` &middot; ${ownedInPkg} already owned` : ''}
+            </div>
+          </div>
+          ${discPrice > 0 ? `
+            <div class="bundle-upsell-price-col">
+              <span class="bundle-upsell-price">₹${discPrice.toFixed(0)}</span>
+              ${origPrice > discPrice ? `<span class="bundle-upsell-orig">₹${origPrice.toFixed(0)}</span>` : ''}
+            </div>` : ''}
+        </div>
+        ${savings > 0 ? `<div class="bundle-upsell-save">🎉 Save ${savings}% by buying the full bundle</div>` : ''}
+        <button class="btn btn-outline w-full" style="margin-top:10px;font-size:0.85rem"
+          onclick="closeModal('book-modal');setTimeout(()=>buyBundle('${pkg.id}'),120)">
+          Buy Whole Bundle
+        </button>
+      </div>`;
+  }
+
   const thumb = book.thumbnail
     ? `<img src="${esc(book.thumbnail)}" alt="${esc(book.title)}" />`
     : `<div class="detail-placeholder"><svg viewBox="0 0 64 88" fill="none"><rect x="2" y="2" width="60" height="84" rx="6" fill="var(--bg3)"/><path d="M18 36h28M18 48h28M18 60h20" stroke="var(--border)" stroke-width="2.5" stroke-linecap="round"/></svg></div>`;
@@ -702,6 +791,8 @@ function openBookDetail(bookId) {
             <button class="btn btn-primary flex-1" onclick="buyNow('${book.id}')">Buy Now</button>
           </div>
         `}
+
+        ${bundleUpsell}
       </div>
     </div>`;
 
@@ -900,13 +991,15 @@ function proceedToCheckout() {
 
 /* ── CHECKOUT ─────────────────────────────────────────────────── */
 function openCheckout(books, bundleTotal) {
-  checkoutCart        = books;
-  checkoutCouponCode  = '';
-  checkoutDiscount    = 0;
-  checkoutScreenshot  = null;
+  checkoutCart          = books;
+  checkoutCouponCode    = '';
+  checkoutCouponApplied = false;
+  checkoutDiscount      = 0;
+  checkoutScreenshot    = null;
 
   const sumTotal = books.reduce((s, b) => s + (parseFloat(b.price) || 0), 0);
-  checkoutFinalTotal  = bundleTotal !== undefined ? bundleTotal : sumTotal;
+  checkoutOriginalTotal = bundleTotal !== undefined ? bundleTotal : sumTotal;
+  checkoutFinalTotal    = checkoutOriginalTotal;
 
   el('checkout-summary').innerHTML = books.map(b => `
     <div class="checkout-item">
@@ -915,7 +1008,10 @@ function openCheckout(books, bundleTotal) {
     </div>`).join('') +
     (bundleTotal !== undefined ? `<div class="checkout-bundle-note">Bundle pricing applied</div>` : '');
 
-  el('coupon-input').value    = '';
+  const couponInput = el('coupon-input');
+  const couponBtn   = document.querySelector('.coupon-row .btn');
+  if (couponInput) { couponInput.value = ''; couponInput.disabled = false; }
+  if (couponBtn)   { couponBtn.disabled = false; couponBtn.textContent = 'Apply'; }
   el('coupon-status').classList.add('hidden');
   el('upload-label').textContent = 'Click to upload screenshot';
   el('upload-zone').classList.remove('uploaded');
@@ -944,44 +1040,61 @@ async function applyCoupon() {
   const code = val('coupon-input').toUpperCase().trim();
   if (!code) { showToast('Enter a coupon code.', 'error'); return; }
 
+  // Block re-applying once a coupon has already been accepted
+  if (checkoutCouponApplied) {
+    showToast('A coupon has already been applied. Reopen checkout to use a different one.', 'info');
+    return;
+  }
+
   const statusEl = el('coupon-status');
   statusEl.textContent = 'Validating…';
   statusEl.className   = 'coupon-status';
   statusEl.classList.remove('hidden');
 
+  const couponInput = el('coupon-input');
+  const couponBtn   = document.querySelector('.coupon-row .btn');
+
   try {
-    const cartBookIds  = checkoutCart.map(b => b.id).join(',');
+    const cartBookIds = checkoutCart.map(b => b.id).join(',');
     const res    = await gas('validateCoupon', {
       code,
       cartBookIds,
       cartPackageId: checkoutPackageId || ''
     });
     const coupon = res.coupon;
-    const sub    = checkoutCart.reduce((s, b) => s + (parseFloat(b.price) || 0), 0);
+
+    // Always discount off the ORIGINAL total — never compound on an already-discounted price
     let disc = 0;
     if (coupon.type === 'percent') {
-      disc = Math.min((coupon.value / 100) * checkoutFinalTotal, checkoutFinalTotal);
+      disc = Math.min((coupon.value / 100) * checkoutOriginalTotal, checkoutOriginalTotal);
     } else {
-      disc = Math.min(coupon.value, checkoutFinalTotal);
+      disc = Math.min(coupon.value, checkoutOriginalTotal);
     }
     disc = Math.round(disc);
-    checkoutDiscount   = disc;
-    checkoutFinalTotal = checkoutFinalTotal - disc;
-    checkoutCouponCode = coupon.code;
 
-    statusEl.textContent = `Coupon applied! You save ₹${disc}`;
+    checkoutDiscount      = disc;
+    checkoutFinalTotal    = checkoutOriginalTotal - disc;
+    checkoutCouponCode    = coupon.code;
+    checkoutCouponApplied = true;
+
+    // Lock the coupon row so it cannot be applied again
+    if (couponInput) couponInput.disabled = true;
+    if (couponBtn)   { couponBtn.disabled = true; couponBtn.textContent = 'Applied'; }
+
+    statusEl.textContent = `✓ Coupon applied! You save ₹${disc}`;
     statusEl.classList.add('success');
-    renderPriceBreakdown(sub, disc, checkoutFinalTotal);
+    renderPriceBreakdown(checkoutOriginalTotal, disc, checkoutFinalTotal);
     updateQR(checkoutFinalTotal);
   } catch (err) {
-    checkoutDiscount   = 0;
-    checkoutCouponCode = '';
-    const sub = checkoutCart.reduce((s, b) => s + (parseFloat(b.price) || 0), 0);
-    checkoutFinalTotal = sub;
-    statusEl.textContent = err.message;
+    // Coupon invalid — revert to original total
+    checkoutDiscount      = 0;
+    checkoutCouponCode    = '';
+    checkoutCouponApplied = false;
+    checkoutFinalTotal    = checkoutOriginalTotal;
+    statusEl.textContent  = err.message;
     statusEl.classList.add('error');
-    renderPriceBreakdown(sub, 0, sub);
-    updateQR(sub);
+    renderPriceBreakdown(checkoutOriginalTotal, 0, checkoutOriginalTotal);
+    updateQR(checkoutOriginalTotal);
   }
 }
 
@@ -1255,13 +1368,20 @@ async function loadAdmin() {
   if (!adminCreds) return;
   try {
     const a = await gas('getAnalytics', adminCreds);
-    setText('a-users',    a.totalUsers);
-    setText('a-books',    a.totalBooks);
-    setText('a-packages', a.totalPackages || 0);
-    setText('a-sales',    a.totalSales);
+    setText('a-users',    a.totalUsers    ?? '—');
+    setText('a-books',    a.totalBooks    ?? '—');
+    setText('a-packages', a.totalPackages ?? 0);
+    setText('a-sales',    a.totalSales    ?? '—');
     setText('a-revenue',  '₹' + (parseFloat(a.totalRevenue) || 0).toFixed(0));
-    setText('a-pending',  a.pendingCount);
-  } catch (err) { showToast('Analytics error: ' + err.message, 'error'); }
+    setText('a-pending',  a.pendingCount  ?? '—');
+  } catch (err) {
+    const hint = err.message === 'Unauthorized.'
+      ? 'Admin credentials rejected. Please log out and log in again.'
+      : err.message.includes('Network')
+        ? 'Network error — check your internet connection.'
+        : 'Analytics failed: ' + err.message + '. Make sure your GAS is redeployed with the latest Code.gs.';
+    showToast(hint, 'error');
+  }
   loadAdminOrders();
   loadPackagesForBookForm();
 }
@@ -1339,6 +1459,8 @@ async function loadAdminBooks() {
   try {
     const res   = await gas('getBooks');
     const books = res.books || [];
+    // Keep global allBooks in sync so adminEditBook() can look up by id
+    if (books.length) allBooks = books;
     el('admin-books-loading')?.classList.add('hidden');
     const list = el('admin-books-list');
     if (!books.length) {
@@ -1356,6 +1478,7 @@ async function loadAdminBooks() {
               : '<div class="table-thumb-placeholder"></div>';
             const pkg = allPackages.find(p => p.id === b.packageId);
             const previewCount = b.previewImages ? b.previewImages.split('|').filter(Boolean).length : 0;
+            const safeTitle = esc(b.title).replace(/'/g, "\\'");
             return `<tr>
               <td>${thumb}</td>
               <td class="fw-500 fs-sm">${esc(b.title)}</td>
@@ -1364,7 +1487,10 @@ async function loadAdminBooks() {
               <td>₹${parseFloat(b.price || 0).toFixed(0)}</td>
               <td class="fs-xs text-muted">${previewCount > 0 ? previewCount + ' imgs' : '—'}</td>
               <td>${parseInt(b.salesCount) || 0}</td>
-              <td><button class="btn btn-sm" style="background:var(--danger);color:#fff" onclick="adminDeleteBook('${b.id}', '${esc(b.title).replace(/'/g, "\\'")}')">Delete</button></td>
+              <td class="actions-cell">
+                <button class="btn btn-ghost btn-sm" onclick="adminEditBook('${b.id}')">Edit</button>
+                <button class="btn btn-sm" style="background:var(--danger);color:#fff" onclick="adminDeleteBook('${b.id}', '${safeTitle}')">Delete</button>
+              </td>
             </tr>`;
           }).join('')}
           </tbody>
@@ -1603,6 +1729,84 @@ async function adminDeleteBook(bookId, title) {
     loadAdminBooks();
     loadAdmin();
   } catch (err) { showToast(err.message, 'error'); }
+}
+
+function adminEditBook(bookId) {
+  const book = allBooks.find(b => b.id === bookId);
+  if (!book) { showToast('Book not found.', 'error'); return; }
+
+  // Populate the edit modal fields
+  el('eb-book-id').value  = book.id;
+  el('eb-title').value    = book.title         || '';
+  el('eb-desc').value     = book.description   || '';
+  el('eb-thumb').value    = book.thumbnail     || '';
+  el('eb-pdf').value      = book.pdf           || '';
+  el('eb-price').value    = book.price         || '';
+  el('eb-rating').value   = book.rating        || '';
+  el('eb-keywords').value = book.keywords      || '';
+
+  // Category select
+  const catSel = el('eb-category');
+  if (catSel) catSel.value = book.category || 'Other';
+
+  // Package select — populate from allPackages then set value
+  const pkgSel = el('eb-package');
+  if (pkgSel) {
+    pkgSel.innerHTML = '<option value="">None (standalone book)</option>' +
+      allPackages.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+    pkgSel.value = book.packageId || '';
+  }
+
+  // Preview image URLs (stored pipe-separated)
+  const prevUrls = (book.previewImages || '').split('|').map(u => u.trim());
+  ['eb-prev1','eb-prev2','eb-prev3','eb-prev4','eb-prev5'].forEach((id, i) => {
+    const inp = el(id);
+    if (inp) inp.value = prevUrls[i] || '';
+  });
+
+  el('edit-book-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+async function submitEditBook() {
+  const btn    = el('edit-book-btn');
+  const bookId = val('eb-book-id');
+  const title  = val('eb-title');
+  const price  = val('eb-price');
+  const pdf    = val('eb-pdf');
+
+  if (!bookId)           { showToast('Book ID missing.', 'error'); return; }
+  if (!title || !pdf)    { showToast('Title and PDF URL are required.', 'error'); return; }
+  if (!price || parseFloat(price) <= 0) { showToast('Please enter a valid price.', 'error'); return; }
+
+  const previewUrls = ['eb-prev1','eb-prev2','eb-prev3','eb-prev4','eb-prev5']
+    .map(id => val(id))
+    .filter(Boolean)
+    .join('|');
+
+  setBtnLoading(btn, true, 'Saving…');
+  try {
+    await gas('updateBook', {
+      ...adminCreds,
+      bookId,
+      title,
+      price,
+      pdf,
+      description:   val('eb-desc'),
+      thumbnail:     val('eb-thumb'),
+      previewImages: previewUrls,
+      keywords:      val('eb-keywords'),
+      category:      el('eb-category')?.value || 'Other',
+      packageId:     el('eb-package')?.value  || '',
+      rating:        val('eb-rating') || 0
+    });
+    closeModal('edit-book-modal');
+    showToast('Book updated! Existing purchasers keep their access.', 'success');
+    clearCache('books');
+    loadBooks(true);
+    loadAdminBooks();
+  } catch (err) { showToast(err.message, 'error'); }
+  setBtnLoading(btn, false, 'Save Changes');
 }
 
 async function submitAddPackage() {
